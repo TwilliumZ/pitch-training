@@ -1,0 +1,6 @@
+{
+  "name": "音当てピッチマスター",
+  "description": "第1問の前に基準音を聴いて確認し、出題される音を聞いて4つの選択肢から当てる5問構成の音当てゲーム。正解との音程の近さ・解答速度・連続正解ボーナスを加点し、ランキングを競います。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
