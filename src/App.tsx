@@ -79,6 +79,12 @@ export default function App() {
     setScreen('reference_tone');
   }, [difficulty]);
 
+// Homeに戻る: タイマー停止 + start画面へ
+  const handleGoHome = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setScreen('start');
+  }, []);
+
   // Transition from Reference Tone Screen to First Question
   const handleProceedToFirstQuestion = useCallback(() => {
     setScreen('playing');
@@ -264,8 +270,9 @@ export default function App() {
         onOpenRules={() => setShowRules(true)}
         speechEnabled={speechNarrationEnabled}
         onToggleSpeech={() => setSpeechNarrationEnabled((prev) => !prev)}
+        onGoHome={handleGoHome}
+        showHome={screen !== 'start'}
       />
-
       {/* Main Game Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center items-center">
         {screen === 'start' && (
