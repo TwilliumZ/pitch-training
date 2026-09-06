@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback }'rea from ct';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   GameDifficulty,
   GameQuestion,
@@ -13,6 +13,7 @@ import {
 } from './types';
 import {
   generateGameQuestions,
+  getMaxQuestionsNoDup,
   calculateClosenessScore,
   calculateSpeedBonus,
   calculateStreakBonus,
@@ -36,8 +37,6 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { RulesModal } from './components/RulesModal';
 import { StartScreen } from './components/StartScreen';
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
-// 総問題数
-const TOTAL_QUESTIONS = 10;
 
 export default function App() {
   // Screen & Modals
@@ -46,6 +45,9 @@ export default function App() {
   const [showRules, setShowRules] = useState<boolean>(false);
   const [speechNarrationEnabled, setSpeechNarrationEnabled] = useState<boolean>(true);
   const [difficulty, setDifficulty] = useState<GameDifficulty>('standard');
+  // 出題設定: 問題数 + 重複ありなし
+  const [numQuestions, setNumQuestions] = useState<number>(5);
+  const [allowDuplicates, setAllowDuplicates] = useState<boolean>(false);
 
   // Game Progress State
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
@@ -67,10 +69,14 @@ export default function App() {
 
   const currentQuestion = questions[currentQuestionIndex] || null;
 
-  // 1. Start a new 5-question game -> First show Reference Tone Screen
+  // 1. Start a new game -> First show Reference Tone Screen
   const handleStartGame = useCallback(() => {
     getAudioContext(); // Resume audio
-    const newQuestions = generateGameQuestions(difficulty);
+    const maxNoDup = getMaxQuestionsNoDup(difficulty);
+    const safeCount = allowDuplicates
+      ? Math.max(1, Math.min(20, numQuestions))
+      : Math.max(1, Math.min(maxNoDup, numQuestions));
+    const newQuestions = generateGameQuestions(difficulty, safeCount, allowDuplicates);
     setQuestions(newQuestions);
     setCurrentQuestionIndex(0);
     setCumulativeScore(0);
@@ -79,7 +85,7 @@ export default function App() {
     setLastRoundResult(null);
     setSelectedNoteChoice(null);
     setScreen('reference_tone');
-  }, [difficulty]);
+  }, [difficulty, numQuestions, allowDuplicates]);
 
   // Transition from Reference Tone Screen to First Question
   const handleProceedToFirstQuestion = useCallback(() => {
@@ -215,16 +221,15 @@ export default function App() {
     [screen, currentQuestion, questionStartTime, currentStreak, cumulativeScore]
   );
 
-  // 4. Advance to Next Question or Game Over (after 5 questions)
+  // 4. Advance to Next Question or Game Over
   const handleNextQuestion = useCallback(() => {
-// TOTAL_QUESTIONSは総問題数
-    if (currentQuestionIndex < TOTAL_QUESTIONS-1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setScreen('playing');
     } else {
       setScreen('game_over');
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, questions.length]);
 
   // 5. Sound replay handler
   const handlePlayQuestionSound = () => {
@@ -278,6 +283,10 @@ export default function App() {
             onStartGame={handleStartGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             onOpenRules={() => setShowRules(true)}
+            numQuestions={numQuestions}
+            onSelectNumQuestions={setNumQuestions}
+            allowDuplicates={allowDuplicates}
+            onToggleDuplicates={() => setAllowDuplicates((prev) => !prev)}
           />
         )}
 
@@ -293,7 +302,7 @@ export default function App() {
             {/* Header with question progress, streak, and additive score */}
             <ScoreHeader
               questionNumber={currentQuestion.questionNumber}
-              totalQuestions={5}
+              totalQuestions={questions.length}
               currentScore={cumulativeScore}
               streakCount={currentStreak}
             />
@@ -324,7 +333,7 @@ export default function App() {
             result={lastRoundResult}
             currentTotalScore={cumulativeScore}
             onNextQuestion={handleNextQuestion}
-            isLastQuestion={currentQuestionIndex === 4}
+            isLastQuestion={currentQuestionIndex === questions.length - 1}
           />
         )}
 
