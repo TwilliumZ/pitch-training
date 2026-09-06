@@ -26,6 +26,8 @@ import {
   getAudioContext,
 } from './utils/audioSynthesizer';
 import { speakText } from './utils/voiceManager';
+import { saveResult } from './utils/resultStorage';
+import { ResultHistoryModal } from './components/ResultHistoryModal';
 import { Navbar } from './components/Navbar';
 import { ScoreHeader } from './components/ScoreHeader';
 import { SoundPlayerCard } from './components/SoundPlayerCard';
@@ -39,6 +41,9 @@ import { StartScreen } from './components/StartScreen';
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
 
 export default function App() {
+  const [showHistory, setShowHistory] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const gameId = useRef('');
   // Screen & Modals
   const [screen, setScreen] = useState<GameScreen>('start');
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
@@ -71,6 +76,8 @@ export default function App() {
 
   // 1. Start a new game -> First show Reference Tone Screen
   const handleStartGame = useCallback(() => {
+    gameId.current = crypto.randomUUID();
+    setSaveError(false);
     getAudioContext(); // Resume audio
     const maxNoDup = getMaxQuestionsNoDup(difficulty);
     const safeCount = allowDuplicates
@@ -227,15 +234,25 @@ export default function App() {
     [screen, currentQuestion, questionStartTime, currentStreak, cumulativeScore]
   );
 
+  const saveCompletedGame = useCallback(() => {
+    try {
+      saveResult(gameId.current, difficulty, cumulativeScore, history);
+      setSaveError(false);
+    } catch {
+      setSaveError(true);
+    }
+  }, [difficulty, cumulativeScore, history]);
+
   // 4. Advance to Next Question or Game Over
   const handleNextQuestion = useCallback(() => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setScreen('playing');
     } else {
+      saveCompletedGame();
       setScreen('game_over');
     }
-  }, [currentQuestionIndex, questions.length]);
+  }, [currentQuestionIndex, questions.length, saveCompletedGame]);
 
   // 5. Sound replay handler
   const handlePlayQuestionSound = () => {
@@ -251,7 +268,7 @@ export default function App() {
   // Keyboard shortcut listener (1, 2, 3, 4 for choices, R for replay)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (screen !== 'playing' || !currentQuestion) return;
+      if (screen !== 'playing' || !currentQuestion || showHistory) return;
 
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -268,12 +285,13 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screen, currentQuestion, handleAnswer]);
+  }, [screen, currentQuestion, handleAnswer, showHistory]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Navbar */}
       <Navbar
+        onOpenHistory={() => setShowHistory(true)}
         onOpenRanking={() => setShowLeaderboard(true)}
         onOpenRules={() => setShowRules(true)}
         speechEnabled={speechNarrationEnabled}
@@ -345,16 +363,24 @@ export default function App() {
         )}
 
         {screen === 'game_over' && (
+          <>
+          <div className="mb-4 text-center text-sm" role="status">
+            {saveError ? <>履歴を保存できませんでした。<button onClick={saveCompletedGame} className="ml-2 underline text-amber-300">再試行</button></> : <span className="text-emerald-300">採点結果を保存しました。</span>}
+            <button onClick={() => setShowHistory(true)} className="ml-3 underline text-indigo-300">学習履歴・グラフを見る</button>
+          </div>
           <GameOverModal
+            difficulty={difficulty}
             totalScore={cumulativeScore}
             history={history}
             onRestart={handleStartGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
           />
+          </>
         )}
       </main>
 
       {/* Modals */}
+      {showHistory && <ResultHistoryModal onClose={() => setShowHistory(false)} />}
       {showLeaderboard && (
         <LeaderboardModal onClose={() => setShowLeaderboard(false)} />
       )}
