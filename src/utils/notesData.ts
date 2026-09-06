@@ -161,17 +161,33 @@ export const ALL_NOTES: NoteInfo[] = [
 
 export const NATURAL_NOTES = ALL_NOTES.filter((n) => !n.isAccidental);
 
+export const MAX_QUESTIONS_NO_DUP_STANDARD = NATURAL_NOTES.length; // 8
+export const MAX_QUESTIONS_NO_DUP_ADVANCED = ALL_NOTES.length; // 13
+
+export function getMaxQuestionsNoDup(difficulty: GameDifficulty): number {
+  return difficulty === 'standard' ? MAX_QUESTIONS_NO_DUP_STANDARD : MAX_QUESTIONS_NO_DUP_ADVANCED;
+}
+
 /**
- * Generate 5 questions for a single game.
+ * Generate N questions for a single game.
  * 4 choices per question, always including the target note.
+ * allowDuplicates=false の場合はプール数(standard:8 / advanced:13)が上限。
  */
-export function generateGameQuestions(difficulty: GameDifficulty = 'standard'): GameQuestion[] {
+export function generateGameQuestions(
+  difficulty: GameDifficulty = 'standard',
+  numQuestions: number = 5,
+  allowDuplicates: boolean = false
+): GameQuestion[] {
   const pool = difficulty === 'standard' ? NATURAL_NOTES : ALL_NOTES;
   const questions: GameQuestion[] = [];
 
-  // Shuffle pool to pick 5 target notes
-  const shuffledPool = [...pool].sort(() => Math.random() - 0.5);
-  const targetNotes = shuffledPool.slice(0, 5);
+  const safeCount = Math.max(1, Math.min(20, Math.floor(numQuestions)));
+
+  // 重複なし: シャッフルして先頭から取る(上限でクランプ)
+  // 重複あり: 毎問ランダム抽選
+  const targetNotes = allowDuplicates
+    ? Array.from({ length: safeCount }, () => pool[Math.floor(Math.random() * pool.length)])
+    : [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(safeCount, pool.length));
 
   targetNotes.forEach((target, index) => {
     // Pick 3 distinct distractor notes

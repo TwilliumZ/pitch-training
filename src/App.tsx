@@ -13,6 +13,7 @@ import {
 } from './types';
 import {
   generateGameQuestions,
+  getMaxQuestionsNoDup,
   calculateClosenessScore,
   calculateSpeedBonus,
   calculateStreakBonus,
@@ -49,6 +50,9 @@ export default function App() {
   const [showRules, setShowRules] = useState<boolean>(false);
   const [speechNarrationEnabled, setSpeechNarrationEnabled] = useState<boolean>(true);
   const [difficulty, setDifficulty] = useState<GameDifficulty>('standard');
+  // 出題設定: 問題数 + 重複ありなし
+  const [numQuestions, setNumQuestions] = useState<number>(5);
+  const [allowDuplicates, setAllowDuplicates] = useState<boolean>(false);
 
   // Game Progress State
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
@@ -70,12 +74,16 @@ export default function App() {
 
   const currentQuestion = questions[currentQuestionIndex] || null;
 
-  // 1. Start a new 5-question game -> First show Reference Tone Screen
+  // 1. Start a new game -> First show Reference Tone Screen
   const handleStartGame = useCallback(() => {
     gameId.current = crypto.randomUUID();
     setSaveError(false);
     getAudioContext(); // Resume audio
-    const newQuestions = generateGameQuestions(difficulty);
+    const maxNoDup = getMaxQuestionsNoDup(difficulty);
+    const safeCount = allowDuplicates
+      ? Math.max(1, Math.min(20, numQuestions))
+      : Math.max(1, Math.min(maxNoDup, numQuestions));
+    const newQuestions = generateGameQuestions(difficulty, safeCount, allowDuplicates);
     setQuestions(newQuestions);
     setCurrentQuestionIndex(0);
     setCumulativeScore(0);
@@ -84,7 +92,7 @@ export default function App() {
     setLastRoundResult(null);
     setSelectedNoteChoice(null);
     setScreen('reference_tone');
-  }, [difficulty]);
+  }, [difficulty, numQuestions, allowDuplicates]);
 
 // Homeに戻る: タイマー停止 + start画面へ
   const handleGoHome = useCallback(() => {
@@ -235,16 +243,16 @@ export default function App() {
     }
   }, [difficulty, cumulativeScore, history]);
 
-  // 4. Advance to Next Question or Game Over (after 5 questions)
+  // 4. Advance to Next Question or Game Over
   const handleNextQuestion = useCallback(() => {
-    if (currentQuestionIndex < 4) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setScreen('playing');
     } else {
       saveCompletedGame();
       setScreen('game_over');
     }
-  }, [currentQuestionIndex, saveCompletedGame]);
+  }, [currentQuestionIndex, questions.length, saveCompletedGame]);
 
   // 5. Sound replay handler
   const handlePlayQuestionSound = () => {
@@ -300,6 +308,10 @@ export default function App() {
             onStartGame={handleStartGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             onOpenRules={() => setShowRules(true)}
+            numQuestions={numQuestions}
+            onSelectNumQuestions={setNumQuestions}
+            allowDuplicates={allowDuplicates}
+            onToggleDuplicates={() => setAllowDuplicates((prev) => !prev)}
           />
         )}
 
@@ -315,7 +327,7 @@ export default function App() {
             {/* Header with question progress, streak, and additive score */}
             <ScoreHeader
               questionNumber={currentQuestion.questionNumber}
-              totalQuestions={5}
+              totalQuestions={questions.length}
               currentScore={cumulativeScore}
               streakCount={currentStreak}
             />
@@ -346,7 +358,7 @@ export default function App() {
             result={lastRoundResult}
             currentTotalScore={cumulativeScore}
             onNextQuestion={handleNextQuestion}
-            isLastQuestion={currentQuestionIndex === 4}
+            isLastQuestion={currentQuestionIndex === questions.length - 1}
           />
         )}
 
