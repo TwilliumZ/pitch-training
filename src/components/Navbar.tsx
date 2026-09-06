@@ -1,11 +1,13 @@
 import React from 'react';
-import { Trophy, HelpCircle, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { Trophy, HelpCircle, Volume2, VolumeX, Sparkles, Home } from 'lucide-react';
 
 interface NavbarProps {
   onOpenRanking: () => void;
   onOpenRules: () => void;
   speechEnabled: boolean;
   onToggleSpeech: () => void;
+  onGoHome: () => void;  // ← 追加: ホームに戻る関数
+  showHome: boolean;     // ← 追加: start画面では隠すための旗
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -13,6 +15,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenRules,
   speechEnabled,
   onToggleSpeech,
+  onGoHome,
+  showHome, 
 }) => {
   return (
     <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
@@ -35,6 +39,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {showHome && (
+    <button
+      id="btn-go-home-header"
+      type="button"
+      onClick={onGoHome}
+      className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 font-medium text-xs flex items-center gap-1.5 transition-all"
+      title="ホームに戻る">
+      <Home className="w-4 h-4" />
+      <span>ホーム</span>
+    </button>)}
           {/* Narrator Voice Toggle */}
           <button
             id="btn-toggle-speech-narration"
