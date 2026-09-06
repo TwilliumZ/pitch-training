@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getResults } from '../utils/resultStorage';
+import { NoteWeaknessAnalysis } from './NoteWeaknessAnalysis';
 const metrics = { totalScore: 'スコア (pt)', accuracy: '正答率 (%)', averageTimeSec: '平均回答時間 (秒)' };
 type Metric = keyof typeof metrics;
 export function ResultHistoryModal({ onClose }: { onClose: () => void }) {
@@ -38,7 +39,8 @@ export function ResultHistoryModal({ onClose }: { onClose: () => void }) {
             {points.map(({ r, x, y }, i) => <g key={r.id}><circle cx={x} cy={y} r="5" fill={r.id === active?.id ? '#fbbf24' : '#818cf8'} /><circle cx={x} cy={y} r="12" fill="transparent" onClick={() => setSelected(r.id)} className="cursor-pointer"><title>{new Date(r.date).toLocaleString('ja-JP')}: {value(r).toFixed(1)}</title></circle>{(i === 0 || i === points.length - 1) && <text x={x} y="232" textAnchor="middle" fill="#94a3b8" fontSize="12">{results.length - recent.length + i + 1}回目</text>}</g>)}
           </svg>
           {active && <p aria-live="polite" className="mb-4 text-sm text-indigo-200">{new Date(active.date).toLocaleString('ja-JP')} · {metrics[metric]}: {value(active).toFixed(metric === 'totalScore' ? 0 : 1)}</p>}
-          <div className="overflow-x-auto max-h-72">
+          <NoteWeaknessAnalysis results={results} />
+          <div className="mt-6 overflow-x-auto max-h-72">
             <table className="w-full whitespace-nowrap text-left text-sm"><caption className="sr-only">保存された全ゲームの採点結果（新しい順）</caption><thead className="text-slate-400"><tr>{['日時', '難易度', 'スコア', '正解', '平均時間'].map((s) => <th key={s} scope="col" className="p-2">{s}</th>)}</tr></thead><tbody>{[...results].reverse().map((r) => <tr key={r.id} className="border-t border-slate-800"><td className="p-2">{new Date(r.date).toLocaleString('ja-JP')}</td><td className="p-2">{r.difficulty === 'standard' ? '標準' : '上級'}</td><td className="p-2">{r.totalScore.toLocaleString()} pt</td><td className="p-2">{r.perfectCount}/{r.questionCount}</td><td className="p-2">{r.averageTimeSec.toFixed(1)}秒</td></tr>)}</tbody></table>
           </div>
         </>}
