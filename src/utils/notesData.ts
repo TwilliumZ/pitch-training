@@ -171,7 +171,7 @@ export function generateGameQuestions(difficulty: GameDifficulty = 'standard'): 
 
   // Shuffle pool to pick 5 target notes
   const shuffledPool = [...pool].sort(() => Math.random() - 0.5);
-  const targetNotes = shuffledPool.slice(0, 5);
+  const targetNotes = shuffledPool.slice(0, TOTAL_QUESTIONS);
 
   targetNotes.forEach((target, index) => {
     // Pick 3 distinct distractor notes

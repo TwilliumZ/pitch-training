@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback }'rea from ct';
 import {
   GameDifficulty,
   GameQuestion,
@@ -36,6 +36,8 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { RulesModal } from './components/RulesModal';
 import { StartScreen } from './components/StartScreen';
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
+// 総問題数
+const TOTAL_QUESTIONS = 10;
 
 export default function App() {
   // Screen & Modals
@@ -215,7 +217,8 @@ export default function App() {
 
   // 4. Advance to Next Question or Game Over (after 5 questions)
   const handleNextQuestion = useCallback(() => {
-    if (currentQuestionIndex < 4) {
+// TOTAL_QUESTIONSは総問題数
+    if (currentQuestionIndex < TOTAL_QUESTIONS-1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setScreen('playing');
     } else {
