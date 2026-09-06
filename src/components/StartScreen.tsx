@@ -1,6 +1,7 @@
 import React from 'react';
-import { Play, Trophy, Sparkles, Mic, Volume2, Target, Flame, Zap } from 'lucide-react';
+import { Play, Trophy, Sparkles, Volume2, Target, Flame, Zap, Settings2 } from 'lucide-react';
 import { GameDifficulty } from '../types';
+import { getMaxQuestionsNoDup } from '../utils/notesData';
 
 interface StartScreenProps {
   difficulty: GameDifficulty;
@@ -8,6 +9,10 @@ interface StartScreenProps {
   onStartGame: () => void;
   onOpenLeaderboard: () => void;
   onOpenRules: () => void;
+  numQuestions: number;
+  onSelectNumQuestions: (n: number) => void;
+  allowDuplicates: boolean;
+  onToggleDuplicates: () => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({
@@ -16,7 +21,15 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   onStartGame,
   onOpenLeaderboard,
   onOpenRules,
+  numQuestions,
+  onSelectNumQuestions,
+  allowDuplicates,
+  onToggleDuplicates,
 }) => {
+  const maxNoDup = getMaxQuestionsNoDup(difficulty);
+  const maxCount = allowDuplicates ? 20 : maxNoDup;
+  const clampedCount = Math.max(1, Math.min(maxCount, numQuestions));
+  const presetCounts = [3, 5, 8].filter((n) => n <= maxCount);
   return (
     <div className="w-full max-w-xl mx-auto bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-slate-700/80 shadow-2xl space-y-6 text-center animate-in fade-in duration-300">
       {/* Icon badge */}
@@ -102,6 +115,76 @@ export const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       </div>
 
+      {/* 出題設定: 折りたたみで表紙をスッキリ保つ */}
+      <details className="bg-slate-950/60 rounded-2xl border border-slate-800 text-left group">
+        <summary className="p-3.5 cursor-pointer list-none flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white">
+          <span className="flex items-center gap-1.5">
+            <Settings2 className="w-4 h-4 text-slate-400" />
+            出題設定: 全{clampedCount}問・重複{allowDuplicates ? 'あり' : 'なし'}
+          </span>
+          <span className="text-slate-500 group-open:rotate-90 transition-transform">▶</span>
+        </summary>
+        <div className="px-3.5 pb-3.5 space-y-3">
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 block mb-1.5">問題数 (1〜{maxCount}問)</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onSelectNumQuestions(Math.max(1, clampedCount - 1))}
+                className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-white font-bold hover:bg-slate-700"
+              >
+                −
+              </button>
+              <span className="flex-1 text-center text-lg font-black text-white">{clampedCount}問</span>
+              <button
+                type="button"
+                onClick={() => onSelectNumQuestions(Math.min(maxCount, clampedCount + 1))}
+                className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-white font-bold hover:bg-slate-700"
+              >
+                ＋
+              </button>
+            </div>
+            <div className="flex gap-1.5 mt-2">
+              {presetCounts.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => onSelectNumQuestions(n)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                    clampedCount === n
+                      ? 'bg-indigo-600/30 border-indigo-500 text-white'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {n}問
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center justify-between gap-2 bg-slate-900 rounded-xl p-2.5 border border-slate-800 cursor-pointer">
+            <span className="text-xs text-slate-300">
+              <span className="font-bold block">音の重複あり</span>
+              <span className="text-[11px] text-slate-500">OFFなら最大{maxNoDup}問まで・ONなら最大20問</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={allowDuplicates}
+              onClick={onToggleDuplicates}
+              className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 ${
+                allowDuplicates ? 'bg-indigo-600' : 'bg-slate-700'
+              }`}
+            >
+              <span
+                className={`block w-4 h-4 rounded-full bg-white transition-transform ${
+                  allowDuplicates ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </label>
+        </div>
+      </details>
+
       {/* Start Button */}
       <div className="space-y-3 pt-1">
         <button
@@ -111,7 +194,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/30 transition-all transform active:scale-98"
         >
           <Play className="w-5 h-5 fill-white" />
-          <span>ゲームスタート (全5問)</span>
+          <span>ゲームスタート (全{clampedCount}問)</span>
         </button>
 
         <div className="flex items-center justify-center gap-4 text-xs font-semibold text-slate-400">
