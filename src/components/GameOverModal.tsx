@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AnswerResult } from '../types';
+import { AnswerResult, GameDifficulty } from '../types';
 import { Trophy, Award, Flame, Zap, RotateCcw, Check, Sparkles, Target } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { saveLeaderboardEntry } from '../utils/leaderboardStorage';
 
 interface GameOverModalProps {
+  difficulty: GameDifficulty;
   totalScore: number;
   history: AnswerResult[];
   onRestart: () => void;
@@ -13,6 +14,7 @@ interface GameOverModalProps {
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   totalScore,
+  difficulty,
   history,
   onRestart,
   onOpenLeaderboard,
@@ -87,7 +89,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       perfectCount,
       maxStreak,
       averageTimeSec: Number(avgTime.toFixed(1)),
-      difficulty: 'standard',
+      difficulty,
     });
     setIsSaved(true);
   };
