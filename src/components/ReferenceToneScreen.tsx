@@ -35,9 +35,9 @@ export const ReferenceToneScreen: React.FC<ReferenceToneScreenProps> = ({
       solfege: 'La',
       freq: 440.0,
       desc: 'チューニング標準音（440Hz）。楽器の調律で世界標準となる音です。',
-      color: 'from-sky-500 to-blue-600',
-      border: 'border-sky-500/40',
-      activeBorder: 'border-sky-400 ring-4 ring-sky-500/30',
+      color: 'from-moss-500 to-moss-700',
+      border: 'border-moss-500/40',
+      activeBorder: 'border-moss-400 ring-4 ring-moss-500/30',
     },
   ];
 
@@ -64,17 +64,17 @@ export const ReferenceToneScreen: React.FC<ReferenceToneScreenProps> = ({
   }, []);
 
   return (
-    <div className="w-full max-w-xl mx-auto bg-slate-900/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-slate-700 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+    <div className="w-full max-w-xl mx-auto bg-white backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-moss-200 shadow-xl shadow-moss-100 space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
       {/* Badge Header */}
       <div className="flex flex-col items-center">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold mb-3">
-          <Music className="w-3.5 h-3.5 text-indigo-400" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-moss-100 text-moss-700 border border-moss-200 text-xs font-bold mb-3">
+          <Music className="w-3.5 h-3.5 text-moss-600" />
           <span>出題前の基準音確認</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">
           第一問の前に、基準の音を聴きましょう
         </h2>
-        <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto mt-2 leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed">
           この基準音（ドの音・ラの音）の高さを耳で覚えてから、出題される問題に挑戦してください。
         </p>
       </div>
@@ -94,27 +94,27 @@ export const ReferenceToneScreen: React.FC<ReferenceToneScreenProps> = ({
               }}
               className={`p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between ${
                 isSelected
-                  ? `bg-slate-800/90 ${note.activeBorder} shadow-lg`
-                  : 'bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60 text-slate-400'
+                  ? `bg-moss-50 ${note.activeBorder} shadow-lg`
+                  : 'bg-white hover:bg-moss-50 border-moss-200 text-slate-500'
               }`}
             >
               <div className="flex items-center justify-between w-full mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   {note.nameEn}
                 </span>
                 <span className="text-[11px] font-mono text-slate-400">{note.freq}Hz</span>
               </div>
-              <div className="text-2xl font-black text-white">{note.nameJa}（{note.solfege}）</div>
-              <div className="text-[11px] text-slate-400 mt-1 line-clamp-1">{note.desc}</div>
+              <div className="text-2xl font-black text-slate-800">{note.nameJa}（{note.solfege}）</div>
+              <div className="text-[11px] text-slate-500 mt-1 line-clamp-1">{note.desc}</div>
             </button>
           );
         })}
       </div>
 
       {/* Main Sound Wave & Play Button Card */}
-      <div className="p-6 bg-slate-950/60 rounded-2xl border border-slate-800/80 flex flex-col items-center justify-center relative overflow-hidden">
+      <div className="p-6 bg-moss-50/60 rounded-2xl border border-moss-100 flex flex-col items-center justify-center relative overflow-hidden">
         <div
-          className={`absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 transition-opacity duration-300 pointer-events-none ${
+          className={`absolute inset-0 bg-moss-200/40 transition-opacity duration-300 pointer-events-none ${
             isPlaying ? 'opacity-100' : 'opacity-0'
           }`}
         />
@@ -126,8 +126,8 @@ export const ReferenceToneScreen: React.FC<ReferenceToneScreenProps> = ({
             onClick={() => playTone()}
             className={`p-6 rounded-full transition-all duration-200 active:scale-95 shadow-xl cursor-pointer ${
               isPlaying
-                ? 'bg-gradient-to-br from-indigo-500 to-pink-500 ring-8 ring-indigo-500/30 scale-105 text-white'
-                : 'bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white hover:ring-4 hover:ring-indigo-500/20'
+                ? 'bg-moss-500 ring-8 ring-moss-200 scale-105 text-white'
+                : 'bg-moss-500 hover:bg-moss-600 text-white hover:ring-4 hover:ring-moss-200'
             }`}
             title="基準音をもう一度聴く"
           >
@@ -135,11 +135,11 @@ export const ReferenceToneScreen: React.FC<ReferenceToneScreenProps> = ({
           </button>
 
           <div>
-            <div className="text-sm font-bold text-white flex items-center justify-center gap-1.5">
+            <div className="text-sm font-bold text-slate-800 flex items-center justify-center gap-1.5">
               <span>基準音: {currentRef.nameJa} ({currentRef.nameEn} - {currentRef.freq}Hz)</span>
-              {isPlaying && <span className="text-xs text-indigo-400 animate-pulse font-normal">♪ 再生中...</span>}
+              {isPlaying && <span className="text-xs text-moss-600 animate-pulse font-normal">♪ 再生中...</span>}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               ボタンを押すと何度でも基準音を聴き直せます
             </p>
           </div>
@@ -152,12 +152,12 @@ export const ReferenceToneScreen: React.FC<ReferenceToneScreenProps> = ({
           id="btn-start-question-1"
           type="button"
           onClick={onProceedToQuestion}
-          className="w-full py-4 px-6 rounded-2xl font-black text-base sm:text-lg bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2.5 transition-all duration-200 transform active:scale-98 cursor-pointer"
+          className="w-full py-4 px-6 rounded-2xl font-black text-base sm:text-lg bg-moss-500 hover:bg-moss-600 text-white shadow-xl shadow-moss-200 flex items-center justify-center gap-2.5 transition-all duration-200 transform active:scale-98 cursor-pointer"
         >
           <span>基準音を覚えた！第1問を出題する</span>
           <ArrowRight className="w-5 h-5" />
         </button>
-        <p className="text-[11px] text-slate-400 mt-2">
+        <p className="text-[11px] text-slate-500 mt-2">
           選択肢をタップまたはキーボード（1〜4キー）で解答できます
         </p>
       </div>

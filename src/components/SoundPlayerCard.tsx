@@ -25,24 +25,24 @@ export const SoundPlayerCard: React.FC<SoundPlayerCardProps> = ({
   };
 
   return (
-    <div className="w-full bg-gradient-to-b from-slate-800/80 to-slate-900/90 rounded-3xl p-6 border border-slate-700/70 shadow-xl relative overflow-hidden text-center">
+    <div className="w-full bg-white rounded-3xl p-6 border border-moss-200 shadow-xl shadow-moss-100 relative overflow-hidden text-center">
       {/* Background glow when audio plays */}
       <div
-        className={`absolute inset-0 bg-indigo-600/10 transition-opacity duration-500 pointer-events-none ${
+        className={`absolute inset-0 bg-moss-200/40 transition-opacity duration-500 pointer-events-none ${
           isPlaying ? 'opacity-100' : 'opacity-0'
         }`}
       />
 
       {/* Top instruction badge */}
-      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-xs font-semibold mb-3">
-        <Radio className="w-3.5 h-3.5 animate-pulse text-indigo-400" />
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-100 text-moss-700 border border-moss-200 text-xs font-semibold mb-3">
+        <Radio className="w-3.5 h-3.5 animate-pulse text-moss-600" />
         <span>コンピュータから問題の音が出題されています</span>
       </div>
 
-      <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-2">
+      <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight mb-2">
         この音は何の音でしょう？
       </h2>
-      <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto mb-5">
+      <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-5">
         音をよく聴いて、下の4つの選択肢の中から正解の音を選んでタップしてください！
       </p>
 
@@ -54,16 +54,16 @@ export const SoundPlayerCard: React.FC<SoundPlayerCardProps> = ({
           onClick={handlePlay}
           className={`group relative p-6 sm:p-8 rounded-full transition-all duration-300 transform active:scale-95 shadow-lg ${
             isPlaying
-              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 ring-8 ring-indigo-500/30 scale-105'
-              : 'bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 hover:ring-4 hover:ring-indigo-500/20'
+              ? 'bg-moss-500 ring-8 ring-moss-200 scale-105'
+              : 'bg-moss-500 hover:bg-moss-600 hover:ring-4 hover:ring-moss-200'
           }`}
           title="クリックして音を再生"
         >
           {/* Animated sound wave ripples */}
           {isPlaying && (
             <>
-              <span className="absolute inset-0 rounded-full border-2 border-indigo-400 animate-ping opacity-60" />
-              <span className="absolute -inset-2 rounded-full border border-purple-400 animate-pulse opacity-40" />
+              <span className="absolute inset-0 rounded-full border-2 border-moss-300 animate-ping opacity-60" />
+              <span className="absolute -inset-2 rounded-full border border-moss-300 animate-pulse opacity-40" />
             </>
           )}
 
@@ -80,7 +80,7 @@ export const SoundPlayerCard: React.FC<SoundPlayerCardProps> = ({
             <div
               key={i}
               className={`w-1.5 rounded-full transition-all duration-200 ${
-                isPlaying ? 'bg-indigo-400' : 'bg-slate-700'
+                isPlaying ? 'bg-moss-500' : 'bg-moss-100'
               }`}
               style={{
                 height: isPlaying ? `${Math.max(6, heightRatio * 24)}px` : '4px',
@@ -95,19 +95,19 @@ export const SoundPlayerCard: React.FC<SoundPlayerCardProps> = ({
           <button
             type="button"
             onClick={handlePlay}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
+            className="px-4 py-2 rounded-xl bg-moss-50 hover:bg-moss-100 text-moss-700 border border-moss-200 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isPlaying ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-moss-600 ${isPlaying ? 'animate-spin' : ''}`} />
             <span>もう一度聴く</span>
             {replayCount > 0 && (
-              <span className="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">
+              <span className="text-[10px] bg-moss-100 px-1.5 py-0.5 rounded text-moss-700">
                 {replayCount}回目
               </span>
             )}
           </button>
 
           {/* Tone Selector */}
-          <div className="flex items-center rounded-xl bg-slate-900/80 p-1 border border-slate-800 text-xs">
+          <div className="flex items-center rounded-xl bg-moss-50 p-1 border border-moss-200 text-xs">
             <button
               type="button"
               onClick={() => {
@@ -116,8 +116,8 @@ export const SoundPlayerCard: React.FC<SoundPlayerCardProps> = ({
               }}
               className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
                 instrument === 'piano'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-moss-500 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               ピアノ音
@@ -130,8 +130,8 @@ export const SoundPlayerCard: React.FC<SoundPlayerCardProps> = ({
               }}
               className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
                 instrument === 'bell'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-moss-500 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               ベル音

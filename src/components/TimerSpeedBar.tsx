@@ -26,12 +26,12 @@ export const TimerSpeedBar: React.FC<TimerSpeedBarProps> = ({
   }
 
   return (
-    <div className="w-full bg-slate-900/70 rounded-2xl p-3 border border-slate-800 shadow-sm space-y-2">
+    <div className="w-full bg-white rounded-2xl p-3 border border-moss-200 shadow-sm shadow-moss-100 space-y-2">
       <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1.5 font-semibold text-slate-300">
-          <Clock className="w-4 h-4 text-slate-400" />
+        <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+          <Clock className="w-4 h-4 text-moss-500" />
           <span>解答制限時間</span>
-          <span className="font-mono text-sm font-black text-white ml-1">
+          <span className="font-mono text-sm font-black text-slate-800 ml-1">
             {remainingTime.toFixed(1)}s
           </span>
         </div>
@@ -44,7 +44,7 @@ export const TimerSpeedBar: React.FC<TimerSpeedBarProps> = ({
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5">
+      <div className="w-full h-2.5 bg-moss-100 rounded-full overflow-hidden p-0.5">
         <div
           className={`h-full rounded-full transition-all duration-100 ${barColor}`}
           style={{ width: `${percent}%` }}

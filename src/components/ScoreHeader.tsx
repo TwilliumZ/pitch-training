@@ -18,14 +18,14 @@ export const ScoreHeader: React.FC<ScoreHeaderProps> = ({
   const nextStreakBonus = calculateStreakBonus(streakCount + 1);
 
   return (
-    <div className="w-full bg-slate-900/60 rounded-2xl p-4 border border-slate-800/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="w-full bg-white rounded-2xl p-4 border border-moss-200 shadow-sm shadow-moss-100 flex flex-col sm:flex-row items-center justify-between gap-4">
       {/* Question Counter & Stepper */}
       <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">問題進行度</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-moss-600">問題進行度</span>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-white">{questionNumber}</span>
-            <span className="text-sm font-medium text-slate-400">/ {totalQuestions} 問</span>
+            <span className="text-2xl font-black text-slate-800">{questionNumber}</span>
+            <span className="text-sm font-medium text-slate-500">/ {totalQuestions} 問</span>
           </div>
         </div>
 
@@ -41,8 +41,8 @@ export const ScoreHeader: React.FC<ScoreHeaderProps> = ({
                   isCompleted
                     ? 'w-4 bg-emerald-500'
                     : isCurrent
-                    ? 'w-7 bg-indigo-500 shadow-sm shadow-indigo-500/50'
-                    : 'w-2.5 bg-slate-700'
+                    ? 'w-7 bg-moss-500 shadow-sm shadow-moss-200'
+                    : 'w-2.5 bg-moss-100'
                 }`}
               />
             );
@@ -63,17 +63,17 @@ export const ScoreHeader: React.FC<ScoreHeaderProps> = ({
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800/80 text-slate-400 text-xs border border-slate-700/60">
-            <Award className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-moss-50 text-slate-500 text-xs border border-moss-100">
+            <Award className="w-3.5 h-3.5 text-moss-500" />
             <span>連続正解ボーナス準備中</span>
           </div>
         )}
       </div>
 
       {/* Cumulative Score */}
-      <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-slate-800 pt-2 sm:pt-0">
-        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
-          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+      <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-moss-100 pt-2 sm:pt-0">
+        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
           現在の合計スコア (加点方式)
         </span>
         <div className="text-2xl font-black text-amber-400 tracking-tight flex items-baseline gap-1">

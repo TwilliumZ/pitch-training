@@ -33,8 +33,8 @@ export const ChoicesGrid: React.FC<ChoicesGridProps> = ({
   return (
     <div className="w-full space-y-2.5">
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-          <span className="inline-block w-2 h-2 rounded-full bg-indigo-400"></span>
+        <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-moss-500"></span>
           <span>選択肢から正解を選んでタップしてください</span>
         </span>
         <span className="text-[11px] text-slate-400 font-mono">キーボード [1] [2] [3] [4] キー</span>
@@ -54,13 +54,13 @@ export const ChoicesGrid: React.FC<ChoicesGridProps> = ({
               onClick={() => onSelect(note, 'click')}
               className={`group relative flex flex-col items-center justify-between p-5 rounded-2xl border text-center transition-all duration-200 transform active:scale-95 ${
                 isSelected
-                  ? 'bg-indigo-600/40 border-indigo-400 ring-4 ring-indigo-500/40 shadow-xl scale-102'
-                  : 'bg-slate-800/90 hover:bg-slate-700/90 border-slate-700 hover:border-indigo-400/60 shadow-lg hover:shadow-indigo-500/20'
+                  ? 'bg-moss-500 border-moss-500 ring-4 ring-moss-200 shadow-xl scale-102'
+                  : 'bg-white hover:bg-moss-50 border-moss-200 hover:border-moss-400 shadow-lg hover:shadow-moss-200'
               } ${disabled ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {/* Header Badge: 1 (A) & sound preview */}
-              <div className="w-full flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span className="font-bold px-2.5 py-0.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs shadow-inner">
+              <div className="w-full flex items-center justify-between text-xs text-slate-500 mb-1">
+                <span className="font-bold px-2.5 py-0.5 rounded-lg bg-moss-50 border border-moss-200 text-moss-700 text-xs shadow-inner">
                   {label.num}
                 </span>
 
@@ -69,7 +69,7 @@ export const ChoicesGrid: React.FC<ChoicesGridProps> = ({
                   role="button"
                   tabIndex={0}
                   onClick={(e) => handlePreview(e, note)}
-                  className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-moss-100 text-slate-400 hover:text-moss-700 transition-colors"
                   title="この選択肢の音を試し聴き"
                 >
                   <Volume1 className="w-4 h-4" />
@@ -78,16 +78,24 @@ export const ChoicesGrid: React.FC<ChoicesGridProps> = ({
 
               {/* Large Note Name */}
               <div className="my-2.5">
-                <span className="text-3xl sm:text-4xl font-black text-white tracking-tight group-hover:scale-105 transition-transform block">
+                <span className={`text-3xl sm:text-4xl font-black tracking-tight group-hover:scale-105 transition-transform block ${
+                  isSelected ? 'text-white' : 'text-slate-800'
+                }`}>
                   {note.nameJa}
                 </span>
-                <span className="text-xs font-semibold text-slate-400 mt-1 block">
+                <span className={`text-xs font-semibold mt-1 block ${
+                  isSelected ? 'text-moss-50' : 'text-slate-500'
+                }`}>
                   {note.nameEn} ({note.solfege})
                 </span>
               </div>
 
               {/* Action Prompt */}
-              <div className="w-full mt-2 pt-2 border-t border-slate-700/60 flex items-center justify-center gap-1 text-[11px] text-indigo-300 font-medium group-hover:text-white">
+              <div className={`w-full mt-2 pt-2 border-t flex items-center justify-center gap-1 text-[11px] font-medium ${
+                isSelected
+                  ? 'border-moss-400 text-white'
+                  : 'border-moss-100 text-moss-600 group-hover:text-moss-700'
+              }`}>
                 <span>タップして解答</span>
               </div>
             </button>
