@@ -40,6 +40,8 @@ import { RulesModal } from './components/RulesModal';
 import { StartScreen } from './components/StartScreen';
 import { SettingsScreen } from './components/SettingsScreen'; 
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
+import { BattleMode } from './components/BattleMode';
+import { CoopMode } from './components/CoopMode';
 
 export default function App() {
   const [showHistory, setShowHistory] = useState(false);
@@ -99,6 +101,14 @@ export default function App() {
   const handleGoHome = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setScreen('start');
+  }, []);
+
+  const handleOpenBattle = useCallback(() => {
+    setScreen('battle');
+  }, []);
+
+  const handleOpenCoop = useCallback(() => {
+    setScreen('coop');
   }, []);
 
   // Transition from Reference Tone Screen to First Question
@@ -309,6 +319,9 @@ export default function App() {
             onStartGame={handleStartGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             onOpenRules={() => setShowRules(true)}
+            onOpenSettings={() => setScreen('settings')}
+            onOpenBattle={handleOpenBattle}
+            onOpenCoop={handleOpenCoop}
             numQuestions={numQuestions}
             onSelectNumQuestions={setNumQuestions}
             allowDuplicates={allowDuplicates}
@@ -390,6 +403,22 @@ export default function App() {
             onOpenLeaderboard={() => setShowLeaderboard(true)}
           />
           </>
+        )}
+
+        {screen === 'battle' && (
+          <BattleMode
+            difficulty={difficulty}
+            numQuestions={numQuestions}
+            onExit={handleGoHome}
+          />
+        )}
+
+        {screen === 'coop' && (
+          <CoopMode
+            difficulty={difficulty}
+            numQuestions={numQuestions}
+            onExit={handleGoHome}
+          />
         )}
       </main>
 
