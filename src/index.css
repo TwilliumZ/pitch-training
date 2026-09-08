@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+@theme {
+  --color-moss-50: #f0f6f1;
+  --color-moss-100: #dce9df;
+  --color-moss-200: #bcd6c3;
+  --color-moss-300: #8dbb99;
+  --color-moss-400: #5b9c6d;
+  --color-moss-500: #357a4c;
+  --color-moss-600: #2a6540;
+  --color-moss-700: #235237;
+}

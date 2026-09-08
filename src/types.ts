@@ -48,4 +48,4 @@ export interface LeaderboardEntry {
 
 export type GameDifficulty = 'standard' | 'advanced';
 export type VoiceInputMode = 'speech' | 'pitch' | 'both';
-export type GameScreen = 'start' | 'reference_tone' | 'playing' | 'round_result' | 'game_over' | 'ranking';
+export type GameScreen = 'start' | 'settings' | 'reference_tone' | 'playing' | 'round_result' | 'game_over' | 'ranking';

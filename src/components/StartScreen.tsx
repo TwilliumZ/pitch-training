@@ -16,8 +16,7 @@ interface StartScreenProps {
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({
-  difficulty,
-  onSelectDifficulty,
+  
   onStartGame,
   onOpenLeaderboard,
   onOpenRules,
@@ -31,20 +30,20 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   const clampedCount = Math.max(1, Math.min(maxCount, numQuestions));
   const presetCounts = [3, 5, 8].filter((n) => n <= maxCount);
   return (
-    <div className="w-full max-w-xl mx-auto bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-slate-700/80 shadow-2xl space-y-6 text-center animate-in fade-in duration-300">
+    <div className="w-full max-w-xl mx-auto bg-white backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-moss-200 shadow-xl shadow-moss-100 space-y-6 text-center animate-in fade-in duration-300">
       {/* Icon badge */}
       <div className="flex flex-col items-center">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-xl shadow-indigo-500/25 mb-4 animate-bounce">
+        <div className="w-20 h-20 rounded-3xl bg-moss-500 flex items-center justify-center text-white shadow-xl shadow-moss-200 mb-4">
           <Sparkles className="w-10 h-10" />
         </div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold mb-2">
-          <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-100 text-moss-700 border border-moss-200 text-xs font-bold mb-2 ">
+          <Volume2 className="w-3.5 h-3.5 text-moss-600" />
           <span>出題前に基準音を確認・選択肢タップで解答</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+        <h1 className=" text-3xl sm:text-4xl font-black text-slate-800 tracking-tight">
           音当てピッチマスター
         </h1>
-        <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto mt-2 leading-relaxed">
+        <p className=" text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed ">
           第1問の前に基準音を聴いて音感をセット！出題される音を聞いて4つの選択肢から当てよう。
           正解の音からどのくらい近いか・解答の速さ・連続正解でドンドン加点！
         </p>
@@ -191,30 +190,16 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           id="btn-start-game-main"
           type="button"
           onClick={onStartGame}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/30 transition-all transform active:scale-98"
-        >
+          className="w-full py-4 rounded-2xl bg-moss-500 hover:bg-moss-600 text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-moss-200 transition-all transform active:scale-98">
           <Play className="w-5 h-5 fill-white" />
           <span>ゲームスタート (全{clampedCount}問)</span>
         </button>
+        <button type="button" onClick={onOpenSettings} className="w-full py-3 rounded-2xl bg-white border border-slate-300 text-slate-700 font-bold text-sm flex items-center justify-center gap-2">
+  <Settings className="w-4 h-4" />
+  <span>設定</span>
+</button>
 
-        <div className="flex items-center justify-center gap-4 text-xs font-semibold text-slate-400">
-          <button
-            type="button"
-            onClick={onOpenLeaderboard}
-            className="hover:text-amber-400 flex items-center gap-1.5 transition-colors"
-          >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>ランキングを見る</span>
-          </button>
-          <span>•</span>
-          <button
-            type="button"
-            onClick={onOpenRules}
-            className="hover:text-slate-200 transition-colors"
-          >
-            遊び方・配点詳細
-          </button>
-        </div>
+        
       </div>
     </div>
   );

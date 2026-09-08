@@ -38,6 +38,7 @@ import { GameOverModal } from './components/GameOverModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { RulesModal } from './components/RulesModal';
 import { StartScreen } from './components/StartScreen';
+import { SettingsScreen } from './components/SettingsScreen'; 
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
 
 export default function App() {
@@ -288,7 +289,7 @@ export default function App() {
   }, [screen, currentQuestion, handleAnswer, showHistory]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-moss-50 text-slate-800 flex flex-col font-sans selection:bg-moss-200 selection:text-slate-800">
       {/* Top Navbar */}
       <Navbar
         onOpenHistory={() => setShowHistory(true)}
@@ -297,7 +298,7 @@ export default function App() {
         speechEnabled={speechNarrationEnabled}
         onToggleSpeech={() => setSpeechNarrationEnabled((prev) => !prev)}
         onGoHome={handleGoHome}
-        showHome={screen !== 'start'}
+       showHome={screen !== 'start' && screen !== 'settings'}
       />
       {/* Main Game Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center items-center">
@@ -313,8 +314,21 @@ export default function App() {
             allowDuplicates={allowDuplicates}
             onToggleDuplicates={() => setAllowDuplicates((prev) => !prev)}
           />
+        
         )}
 
+          {screen === 'settings' && (
+            <SettingsScreen
+              difficulty={difficulty}
+              onSelectDifficulty={setDifficulty}
+              speechEnabled={speechNarrationEnabled}
+              onToggleSpeech={() => setSpeechNarrationEnabled((prev) => !prev)}
+              onOpenLeaderboard={() => setShowLeaderboard(true)}
+              onOpenRules={() => setShowRules(true)}
+              onBack={() => setScreen('start')}
+            />
+          )}
+       
         {screen === 'reference_tone' && (
           <ReferenceToneScreen
             onProceedToQuestion={handleProceedToFirstQuestion}
