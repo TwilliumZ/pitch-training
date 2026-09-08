@@ -5,6 +5,7 @@ import { generateGameQuestions, calculateClosenessScore, calculateSpeedBonus, ca
 import { playNoteSound } from '../utils/audioSynthesizer';
 import { ChoicesGrid } from './ChoicesGrid';
 import { TimerSpeedBar } from './TimerSpeedBar';
+import { BgmLoopPlayer } from './BgmLoopPlayer';
 
 interface BattleModeProps {
   difficulty: GameDifficulty;
@@ -251,6 +252,8 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
 
       {phase === 'playing' && current && (
         <div className="space-y-4">
+          {/* Feature 3: BGM loop while playing (stops automatically on exit) */}
+          <BgmLoopPlayer />
           <div className="flex justify-between text-xs text-slate-300">
             <span>Q{current.questionNumber}/{questions.length}</span>
             <span className="font-mono text-amber-400 font-black">{score.toLocaleString()}pt</span>

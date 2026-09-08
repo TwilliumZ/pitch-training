@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Play, Users, Trophy, Volume2, Music, RotateCcw } from 'lucide-react';
 import { GameDifficulty, GameQuestion, NoteInfo } from '../types';
-import { MELODIES, getMelodyById, melodyToQuestions, barIndexOfNote, noteStartOfBar } from '../utils/melodiesData';
+import { MELODIES, getMelodyById, melodyToQuestions, barIndexOfNote, noteStartOfBar, flattenMelody } from '../utils/melodiesData';
 import { calculateClosenessScore, calculateSpeedBonus, calculateStreakBonus } from '../utils/notesData';
 import { playNoteSound, playMelody } from '../utils/audioSynthesizer';
 import { ChoicesGrid } from './ChoicesGrid';
 import { TimerSpeedBar } from './TimerSpeedBar';
+import { BgmLoopPlayer } from './BgmLoopPlayer';
 
 interface CoopModeProps {
   difficulty: GameDifficulty;
@@ -304,6 +305,9 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
   const barProgress = current ? (idx - noteStartOfBar(melody, currentBar) + 1) : 0;
   const barTotal = current ? melody.bars[currentBar]?.length || 1 : 1;
 
+  // Feature 3: BGM loop uses the coop melody itself (midi -> frequency)
+  const bgmFreqs = flattenMelody(melody).map((m) => 440 * Math.pow(2, (m - 69) / 12));
+
   const ranking = [...(serverState?.players || [])].map(p => ({
     name: p.name,
     score: playerScores[p.name] || 0,
@@ -390,6 +394,8 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
 
       {phase === 'playing' && current && serverState && (
         <div className="space-y-4">
+          {/* Feature 3: loop the coop melody as BGM (stops automatically on exit) */}
+          <BgmLoopPlayer melodyFreqs={bgmFreqs} stepSec={0.4} />
           <div className="flex justify-between text-xs text-slate-300">
             <span>Q{current.questionNumber}/{questions.length}</span>
             <span className="font-mono text-emerald-400 font-black">チーム:{teamScore.toLocaleString()}pt</span>
