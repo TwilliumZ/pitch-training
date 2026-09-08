@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AnswerResult } from '../types';
+import { AnswerResult, GameDifficulty } from '../types';
 import { Trophy, Award, Flame, Zap, RotateCcw, Check, Sparkles, Target } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { saveLeaderboardEntry } from '../utils/leaderboardStorage';
 
 interface GameOverModalProps {
+  difficulty: GameDifficulty;
   totalScore: number;
   history: AnswerResult[];
   onRestart: () => void;
@@ -13,6 +14,7 @@ interface GameOverModalProps {
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   totalScore,
+  difficulty,
   history,
   onRestart,
   onOpenLeaderboard,
@@ -34,6 +36,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   }, []);
 
   // Stats
+  const totalQuestions = history.length || 5;
   const perfectCount = history.filter((h) => h.isExact).length;
   const maxStreak = Math.max(0, ...history.map((h) => h.streakCountAfter));
   const avgTime =
@@ -41,35 +44,36 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       ? history.reduce((acc, h) => acc + h.timeTakenSec, 0) / history.length
       : 0;
 
-  // Rank evaluation
+  // Rank evaluation (問題数でスケール)
+  const scale = totalQuestions / 5;
   let rankBadge = {
     title: 'Cランク: 音当てチャレンジャー',
     color: 'from-slate-500 to-slate-700',
     border: 'border-slate-500',
     desc: '音の高さの違いを聞き分ける基礎が身についています！練習してさらにスコアを伸ばそう！',
   };
-  if (totalScore >= 7500) {
+  if (totalScore >= 7500 * scale) {
     rankBadge = {
       title: '👑 SSSランク: 絶対音感マスター',
       color: 'from-amber-400 via-orange-500 to-yellow-500',
       border: 'border-amber-400',
       desc: '驚異的な絶対音感の持ち主！わずかな半音の差も完璧に聞き分け、音速で即答しました！',
     };
-  } else if (totalScore >= 6000) {
+  } else if (totalScore >= 6000 * scale) {
     rankBadge = {
       title: '🥇 Sランク: マエストロ音感',
       color: 'from-emerald-400 to-teal-600',
       border: 'border-emerald-400',
       desc: '素晴らしい音感と瞬発力！トップクラスの耳を持っています！',
     };
-  } else if (totalScore >= 4500) {
+  } else if (totalScore >= 4500 * scale) {
     rankBadge = {
       title: '🥈 Aランク: プロフェッショナル音感',
       color: 'from-blue-400 to-indigo-600',
       border: 'border-blue-400',
       desc: '高い精度で音を聞き取れています！スピードボーナスを意識すればさらに上位へ！',
     };
-  } else if (totalScore >= 3000) {
+  } else if (totalScore >= 3000 * scale) {
     rankBadge = {
       title: '🥉 Bランク: グッドリスナー',
       color: 'from-purple-400 to-pink-600',
@@ -87,7 +91,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       perfectCount,
       maxStreak,
       averageTimeSec: Number(avgTime.toFixed(1)),
-      difficulty: 'standard',
+      difficulty,
     });
     setIsSaved(true);
   };
@@ -99,8 +103,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         <div className="w-16 h-16 rounded-2xl bg-moss-500 flex items-center justify-center text-white shadow-lg shadow-moss-200 mb-3">
           <Trophy className="w-8 h-8" />
         </div>
-        <span className="text-xs font-bold uppercase tracking-widest text-moss-600">
-          全5問 終了！ お疲れ様でした！
+        <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">
+          全{totalQuestions}問 終了！ お疲れ様でした！
         </span>
         <h2 className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tight mt-1">
           ゲーム結果発表
@@ -129,8 +133,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               <Target className="w-3.5 h-3.5" />
               <span>完全正解</span>
             </div>
-            <div className="text-lg sm:text-xl font-black text-slate-800">
-              {perfectCount} <span className="text-xs text-slate-400 font-medium">/ 5問</span>
+            <div className="text-lg sm:text-xl font-black text-white">
+              {perfectCount} <span className="text-xs text-slate-400 font-medium">/ {totalQuestions}問</span>
             </div>
           </div>
 
@@ -240,7 +244,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-moss-500 hover:bg-moss-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-moss-200 transition-all transform active:scale-95"
         >
           <RotateCcw className="w-4 h-4" />
-          <span>もう一度遊ぶ (次の5問)</span>
+          <span>もう一度遊ぶ (次の{totalQuestions}問)</span>
         </button>
 
         <button

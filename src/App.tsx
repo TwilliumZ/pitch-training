@@ -13,6 +13,7 @@ import {
 } from './types';
 import {
   generateGameQuestions,
+  getMaxQuestionsNoDup,
   calculateClosenessScore,
   calculateSpeedBonus,
   calculateStreakBonus,
@@ -25,6 +26,8 @@ import {
   getAudioContext,
 } from './utils/audioSynthesizer';
 import { speakText } from './utils/voiceManager';
+import { saveResult } from './utils/resultStorage';
+import { ResultHistoryModal } from './components/ResultHistoryModal';
 import { Navbar } from './components/Navbar';
 import { ScoreHeader } from './components/ScoreHeader';
 import { SoundPlayerCard } from './components/SoundPlayerCard';
@@ -39,12 +42,18 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
 
 export default function App() {
+  const [showHistory, setShowHistory] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const gameId = useRef('');
   // Screen & Modals
   const [screen, setScreen] = useState<GameScreen>('start');
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
   const [showRules, setShowRules] = useState<boolean>(false);
   const [speechNarrationEnabled, setSpeechNarrationEnabled] = useState<boolean>(true);
   const [difficulty, setDifficulty] = useState<GameDifficulty>('standard');
+  // 出題設定: 問題数 + 重複ありなし
+  const [numQuestions, setNumQuestions] = useState<number>(5);
+  const [allowDuplicates, setAllowDuplicates] = useState<boolean>(false);
 
   // Game Progress State
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
@@ -66,10 +75,16 @@ export default function App() {
 
   const currentQuestion = questions[currentQuestionIndex] || null;
 
-  // 1. Start a new 5-question game -> First show Reference Tone Screen
+  // 1. Start a new game -> First show Reference Tone Screen
   const handleStartGame = useCallback(() => {
+    gameId.current = crypto.randomUUID();
+    setSaveError(false);
     getAudioContext(); // Resume audio
-    const newQuestions = generateGameQuestions(difficulty);
+    const maxNoDup = getMaxQuestionsNoDup(difficulty);
+    const safeCount = allowDuplicates
+      ? Math.max(1, Math.min(20, numQuestions))
+      : Math.max(1, Math.min(maxNoDup, numQuestions));
+    const newQuestions = generateGameQuestions(difficulty, safeCount, allowDuplicates);
     setQuestions(newQuestions);
     setCurrentQuestionIndex(0);
     setCumulativeScore(0);
@@ -78,7 +93,7 @@ export default function App() {
     setLastRoundResult(null);
     setSelectedNoteChoice(null);
     setScreen('reference_tone');
-  }, [difficulty]);
+  }, [difficulty, numQuestions, allowDuplicates]);
 
 // Homeに戻る: タイマー停止 + start画面へ
   const handleGoHome = useCallback(() => {
@@ -220,15 +235,25 @@ export default function App() {
     [screen, currentQuestion, questionStartTime, currentStreak, cumulativeScore]
   );
 
-  // 4. Advance to Next Question or Game Over (after 5 questions)
+  const saveCompletedGame = useCallback(() => {
+    try {
+      saveResult(gameId.current, difficulty, cumulativeScore, history);
+      setSaveError(false);
+    } catch {
+      setSaveError(true);
+    }
+  }, [difficulty, cumulativeScore, history]);
+
+  // 4. Advance to Next Question or Game Over
   const handleNextQuestion = useCallback(() => {
-    if (currentQuestionIndex < 4) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setScreen('playing');
     } else {
+      saveCompletedGame();
       setScreen('game_over');
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, questions.length, saveCompletedGame]);
 
   // 5. Sound replay handler
   const handlePlayQuestionSound = () => {
@@ -244,7 +269,7 @@ export default function App() {
   // Keyboard shortcut listener (1, 2, 3, 4 for choices, R for replay)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (screen !== 'playing' || !currentQuestion) return;
+      if (screen !== 'playing' || !currentQuestion || showHistory) return;
 
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -261,12 +286,13 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screen, currentQuestion, handleAnswer]);
+  }, [screen, currentQuestion, handleAnswer, showHistory]);
 
   return (
     <div className="min-h-screen bg-moss-50 text-slate-800 flex flex-col font-sans selection:bg-moss-200 selection:text-slate-800">
       {/* Top Navbar */}
       <Navbar
+        onOpenHistory={() => setShowHistory(true)}
         onOpenRanking={() => setShowLeaderboard(true)}
         onOpenRules={() => setShowRules(true)}
         speechEnabled={speechNarrationEnabled}
@@ -277,10 +303,16 @@ export default function App() {
       {/* Main Game Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center items-center">
         {screen === 'start' && (
-         
-        <StartScreen
-          onStartGame={handleStartGame}
-          onOpenSettings={() => setScreen('settings')}
+          <StartScreen
+            difficulty={difficulty}
+            onSelectDifficulty={setDifficulty}
+            onStartGame={handleStartGame}
+            onOpenLeaderboard={() => setShowLeaderboard(true)}
+            onOpenRules={() => setShowRules(true)}
+            numQuestions={numQuestions}
+            onSelectNumQuestions={setNumQuestions}
+            allowDuplicates={allowDuplicates}
+            onToggleDuplicates={() => setAllowDuplicates((prev) => !prev)}
           />
         
         )}
@@ -309,7 +341,7 @@ export default function App() {
             {/* Header with question progress, streak, and additive score */}
             <ScoreHeader
               questionNumber={currentQuestion.questionNumber}
-              totalQuestions={5}
+              totalQuestions={questions.length}
               currentScore={cumulativeScore}
               streakCount={currentStreak}
             />
@@ -340,21 +372,29 @@ export default function App() {
             result={lastRoundResult}
             currentTotalScore={cumulativeScore}
             onNextQuestion={handleNextQuestion}
-            isLastQuestion={currentQuestionIndex === 4}
+            isLastQuestion={currentQuestionIndex === questions.length - 1}
           />
         )}
 
         {screen === 'game_over' && (
+          <>
+          <div className="mb-4 text-center text-sm" role="status">
+            {saveError ? <>履歴を保存できませんでした。<button onClick={saveCompletedGame} className="ml-2 underline text-amber-300">再試行</button></> : <span className="text-emerald-300">採点結果を保存しました。</span>}
+            <button onClick={() => setShowHistory(true)} className="ml-3 underline text-indigo-300">学習履歴・グラフを見る</button>
+          </div>
           <GameOverModal
+            difficulty={difficulty}
             totalScore={cumulativeScore}
             history={history}
             onRestart={handleStartGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
           />
+          </>
         )}
       </main>
 
       {/* Modals */}
+      {showHistory && <ResultHistoryModal onClose={() => setShowHistory(false)} />}
       {showLeaderboard && (
         <LeaderboardModal onClose={() => setShowLeaderboard(false)} />
       )}
