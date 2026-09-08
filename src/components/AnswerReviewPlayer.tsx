@@ -9,6 +9,10 @@ interface AnswerReviewPlayerProps {
   notes: NoteInfo[];
   /** 各音の正誤（省略可） */
   correctFlags?: (boolean | undefined)[];
+  /** 見出し（省略時は自分の回答の楽譜） */
+  title?: string;
+  /** 再生ボタンの文言（省略時は自分の回答を聴き直す） */
+  playLabel?: string;
 }
 
 const STEP_MS = 650;
@@ -20,6 +24,8 @@ const STEP_MS = 650;
 export const AnswerReviewPlayer: React.FC<AnswerReviewPlayerProps> = ({
   notes,
   correctFlags,
+  title = '自分の回答の楽譜',
+  playLabel = '自分の回答を聴き直す',
 }) => {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const timersRef = useRef<number[]>([]);
@@ -62,7 +68,7 @@ export const AnswerReviewPlayer: React.FC<AnswerReviewPlayerProps> = ({
     <div className="bg-moss-50/60 rounded-2xl p-4 border border-moss-100 text-left space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-          自分の回答の楽譜
+          {title}
         </h4>
         <button
           id="btn-review-answers"
@@ -76,7 +82,7 @@ export const AnswerReviewPlayer: React.FC<AnswerReviewPlayerProps> = ({
         >
           {playing ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           <span>
-            {playing ? `停止（${playingIndex + 1}/${notes.length}）` : '自分の回答を聴き直す'}
+            {playing ? `停止（${playingIndex + 1}/${notes.length}）` : playLabel}
           </span>
         </button>
       </div>

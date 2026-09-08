@@ -8,6 +8,8 @@ interface AnswerStaffProps {
   correctFlags?: (boolean | undefined)[];
   /** 再生中の強調位置（省略可） */
   highlightIndex?: number;
+  /** 各音の見出し（省略時は Q1 から連番。時間切れで飛んだ問番号のずれ防止用） */
+  labels?: string[];
 }
 
 const STEP_LETTER_INDEX: Record<string, number> = {
@@ -60,6 +62,7 @@ export const AnswerStaff: React.FC<AnswerStaffProps> = ({
   notes,
   correctFlags,
   highlightIndex,
+  labels,
 }) => {
   const noteWidth = 64;
   const leftPad = 64;
@@ -119,7 +122,7 @@ export const AnswerStaff: React.FC<AnswerStaffProps> = ({
             ))}
             {/* Question number */}
             <text x={x} y={26} fontSize={11} fontWeight="bold" fill="#64748b" textAnchor="middle">
-              Q{i + 1}
+              {labels?.[i] ?? `Q${i + 1}`}
             </text>
             {/* Accidental */}
             {isSharp && (

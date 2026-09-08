@@ -7,6 +7,9 @@ import { playNoteSound, playMelody } from '../utils/audioSynthesizer';
 import { ChoicesGrid } from './ChoicesGrid';
 import { TimerSpeedBar } from './TimerSpeedBar';
 import { BgmLoopPlayer } from './BgmLoopPlayer';
+import { AuditionKeyboard } from './AuditionKeyboard';
+import { AnswerStaff } from './AnswerStaff';
+import { AnswerReviewPlayer } from './AnswerReviewPlayer';
 
 interface CoopModeProps {
   difficulty: GameDifficulty;
@@ -71,6 +74,10 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
   const [remaining, setRemaining] = useState<number>(TIME_LIMIT_SEC);
   const [isPlayingSound, setIsPlayingSound] = useState<boolean>(false);
   const [melodyPlayed, setMelodyPlayed] = useState<boolean>(false);
+  // 回答履歴（五線譜表示と比較再生用。採点処理には触らない）
+  const [answers, setAnswers] = useState<{ note: NoteInfo; isExact: boolean; qNumber: number; qIndex: number }[]>([]);
+  // サーバー状態の前回値（新規ラウンド開始の検出用）
+  const prevStatusRef = useRef<string | null>(null);
   const [phase, setPhase] = useState<'lobby-entry' | 'lobby' | 'melody' | 'playing' | 'finished'>('lobby-entry');
   const timerRef = useRef<number | null>(null);
   const startRef = useRef<number>(0);
@@ -83,26 +90,35 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
     try {
       const s = (await api(serverUrl, `/api/rooms/${roomId}/state`)) as ServerState;
       setServerState(s);
-      if (s.status === 'playing' && s.questions && questions.length === 0) {
+      // 新規ラウンド検出: playing に入った瞬間は出題を同期し直す
+      // （ホスト再開時や参加遅れで進行がずれないようにする）
+      const prev = prevStatusRef.current;
+      prevStatusRef.current = s.status;
+      const newRound = s.status === 'playing' && prev !== 'playing';
+      if (s.status === 'playing' && s.questions && (questions.length === 0 || newRound)) {
         setQuestions(s.questions);
         setIdx(0);
         setTeamScore(0);
         setPlayerScores({});
         setPlayerStreaks({});
         s.players.forEach(p => { setPlayerScores(prev => ({ ...prev, [p.name]: 0 })); setPlayerStreaks(prev => ({ ...prev, [p.name]: 0 })); });
-        setPhase('melody');
+        setAnswers([]);
+        setMelodyPlayed(false);
+        setCurrentAnswerer('');
+        if (phase === 'finished' || phase === 'lobby') setPhase('melody');
       }
     } catch {
       // ポーリング失敗は無視
     }
-  }, [joined, roomId, serverUrl, questions.length]);
+  }, [joined, roomId, serverUrl, questions.length, phase]);
 
   useEffect(() => {
     if (!joined) return;
     pollState();
-    const t = window.setInterval(pollState, 2000);
+    // 出題中と基準音中は同期をこまめに（1秒）、待機中は負荷軽減（2秒）
+    const t = window.setInterval(pollState, phase === 'playing' || phase === 'melody' ? 1000 : 2000);
     return () => window.clearInterval(t);
-  }, [joined, pollState]);
+  }, [joined, pollState, phase]);
 
   // メロディー全体を1回流す
   useEffect(() => {
@@ -209,6 +225,7 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
       setTeamScore(0);
       setPlayerScores({});
       setPlayerStreaks({});
+      setAnswers([]);
       serverState?.players.forEach(p => { setPlayerScores(prev => ({ ...prev, [p.name]: 0 })); setPlayerStreaks(prev => ({ ...prev, [p.name]: 0 })); });
       await pollState();
     } catch (e) {
@@ -239,6 +256,8 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
     setPlayerScores(prev => ({ ...prev, [playerName]: myNewScore }));
     setPlayerStreaks(prev => ({ ...prev, [playerName]: ns }));
     setTeamScore(prev => prev + gained);
+    // 回答履歴に記録（五線譜表示と比較再生用）
+    setAnswers((prev) => [...prev, { note, isExact: closeness.semitoneDiff === 0, qNumber: current.questionNumber, qIndex: idx }]);
 
     // 次の小節・次の問題へ
     const nextIdx = idx + 1;
@@ -313,6 +332,15 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
     score: playerScores[p.name] || 0,
     finished: p.finished,
   })).sort((a, b) => b.score - a.score);
+
+  // 小節ごとの回答履歴（継続表示用）
+  const answersByBar: { bar: number; entries: typeof answers }[] = [];
+  answers.forEach((a) => {
+    const bar = barIndexOfNote(melody, a.qIndex);
+    const found = answersByBar.find((b) => b.bar === bar);
+    if (found) found.entries.push(a);
+    else answersByBar.push({ bar, entries: [a] });
+  });
 
   return (
     <div className="w-full max-w-2xl mx-auto bg-slate-900/95 rounded-3xl p-6 border border-slate-700 space-y-5">
@@ -405,6 +433,24 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
             <span className="px-2 py-0.5 bg-slate-800 rounded">第{currentBar + 1}小節({barProgress}/{barTotal})</span>
             <span>🎤 解答:<strong className="text-emerald-300">{currentAnswerer || playerName}</strong></span>
           </div>
+          {/* 同期表示: 他メンバーの確定状況（1秒ごとに更新） */}
+          {serverState.players.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px]" role="status">
+              <span className="text-slate-400 font-bold">同期中</span>
+              {serverState.players.map((p) => (
+                <span
+                  key={p.name}
+                  className={`px-2 py-0.5 rounded-full border font-bold ${
+                    p.finished
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}
+                >
+                  {p.name}: {p.finished ? `${p.score.toLocaleString()}pt確定` : '演奏中'}
+                </span>
+              ))}
+            </div>
+          )}
           <TimerSpeedBar remainingTime={remaining} totalTime={TIME_LIMIT_SEC} />
           <div className="flex gap-2">
             <button
@@ -424,6 +470,24 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
             </button>
           </div>
           <ChoicesGrid choices={current.choices} selectedNote={null} onSelect={handleAnswer} disabled={isPlayingSound || (currentAnswerer && serverState.players.length > 1 && currentAnswerer !== playerName)} />
+          {/* 音確認鍵盤（試聴のみ。自分の番でないときは無効） */}
+          <AuditionKeyboard disabled={isPlayingSound || (currentAnswerer !== '' && currentAnswerer !== playerName)} />
+          {/* 小節ごとの回答の五線譜（継続表示） */}
+          {answersByBar.length > 0 && (
+            <div className="bg-white rounded-2xl p-3 border border-moss-200 space-y-2">
+              <p className="text-xs font-bold text-slate-600">これまでの回答の五線譜（小節ごと）</p>
+              {answersByBar.map(({ bar, entries }) => (
+                <div key={bar} className="space-y-1">
+                  <p className="text-[11px] font-bold text-moss-700">第{bar + 1}小節</p>
+                  <AnswerStaff
+                    notes={entries.map((a) => a.note)}
+                    correctFlags={entries.map((a) => a.isExact)}
+                    labels={entries.map((a) => `Q${a.qNumber}`)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           <div className="text-xs text-slate-400">小節ごとに解答者が交代します</div>
         </div>
       )}
@@ -435,6 +499,20 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
             <div className="text-2xl font-black text-white">チーム合計 {teamScore.toLocaleString()}pt</div>
             <div className="text-xs text-slate-400">全{questions.length}問 完走！</div>
           </div>
+          {/* 回答と正解の聞き比べ */}
+          {answers.length > 0 && (
+            <AnswerReviewPlayer
+              notes={answers.map((a) => a.note)}
+              correctFlags={answers.map((a) => a.isExact)}
+            />
+          )}
+          {questions.length > 0 && (
+            <AnswerReviewPlayer
+              notes={questions.map((q) => q.targetNote)}
+              title="正解の楽譜"
+              playLabel="正解を聴き直す"
+            />
+          )}
           <div className="space-y-1.5">
             {ranking.map((p, i) => (
               <div key={p.name} className={`flex justify-between rounded-xl px-3 py-2 text-sm border ${p.name === playerName ? 'bg-emerald-600/20 border-emerald-500/40' : 'bg-slate-950/60 border-slate-800'}`}>
@@ -444,7 +522,7 @@ export const CoopMode: React.FC<CoopModeProps> = ({ difficulty, numQuestions, on
             ))}
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => { setPhase('lobby'); setMelodyPlayed(false); setIdx(0); setTeamScore(0); setQuestions([]); }} className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold">もう一度遊ぶ</button>
+            <button type="button" onClick={() => { setPhase('lobby'); setMelodyPlayed(false); setIdx(0); setTeamScore(0); setQuestions([]); setAnswers([]); }} className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold">もう一度遊ぶ</button>
             <button type="button" onClick={onExit} className="flex-1 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold text-white">表紙にもどる</button>
           </div>
         </div>
