@@ -21,7 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   showHome, 
 }) => {
   return (
-    <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
+    <header className="w-full bg-white/90 backdrop-blur-md border-b border-moss-200 sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
         {/* Logo & Title */}
         <div className="flex items-center gap-2.5">
@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden sm:inline">{speechEnabled ? '読み上げON' : '読み上げOFF'}</span>
           </button>
 
-<button type="button" onClick={onOpenHistory} className="px-3 py-2 rounded-lg bg-indigo-500/20 text-indigo-200 text-xs font-semibold">学習履歴</button>
+<button type="button" onClick={onOpenHistory} className="px-3 py-2 rounded-lg bg-moss-100 text-moss-700 text-xs font-semibold">学習履歴</button>
           {/* Ranking Button */}
           <button
             id="btn-open-ranking-header"

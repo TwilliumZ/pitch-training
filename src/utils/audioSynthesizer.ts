@@ -16,6 +16,78 @@ export function getAudioContext(): AudioContext {
 }
 
 /**
+ * Play a melody sequence (for Coop mode).
+ * melodyNotes: array of frequencies, noteDuration: each note length, gap: gap between notes
+ */
+export function playMelody(
+  melodyNotes: number[],
+  noteDuration: number = 0.35,
+  gap: number = 0.05,
+  instrument: 'piano' | 'flute' | 'bell' = 'piano'
+): void {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.001, now);
+    masterGain.connect(ctx.destination);
+
+    melodyNotes.forEach((freq, i) => {
+      const startTime = now + i * (noteDuration + gap);
+
+      if (instrument === 'piano') {
+        const harmonics = [
+          { mult: 1, gain: 0.6 },
+          { mult: 2, gain: 0.25 },
+          { mult: 3, gain: 0.12 },
+          { mult: 4, gain: 0.05 },
+          { mult: 5, gain: 0.02 },
+        ];
+
+        harmonics.forEach(({ mult, gain }) => {
+          const osc = ctx.createOscillator();
+          const oscGain = ctx.createGain();
+
+          osc.type = mult === 1 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq * mult, startTime);
+
+          oscGain.gain.setValueAtTime(gain, startTime);
+          oscGain.gain.exponentialRampToValueAtTime(0.0001, startTime + noteDuration);
+
+          osc.connect(oscGain);
+          oscGain.connect(masterGain);
+
+          osc.start(startTime);
+          osc.stop(startTime + noteDuration);
+        });
+      } else {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        const noteGain = ctx.createGain();
+        noteGain.gain.setValueAtTime(0.6, startTime);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + noteDuration);
+
+        osc.connect(noteGain);
+        noteGain.connect(masterGain);
+
+        osc.start(startTime);
+        osc.stop(startTime + noteDuration);
+      }
+    });
+
+    // Master envelope - overall fade
+    const totalDur = melodyNotes.length * (noteDuration + gap);
+    masterGain.gain.exponentialRampToValueAtTime(0.7, now + 0.03);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + totalDur);
+  } catch (err) {
+    console.warn('Failed to play melody:', err);
+  }
+}
+
+/**
  * Play a musical note with rich acoustic harmonics (Piano / Celesta-like timbre).
  */
 export function playNoteSound(freq: number, duration: number = 1.4, instrument: 'piano' | 'flute' | 'bell' = 'piano'): void {
