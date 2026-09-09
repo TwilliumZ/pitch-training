@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AnswerResult, GameDifficulty } from '../types';
+import { AnswerResult, GameDifficulty, NoteInfo } from '../types';
 import { Trophy, Award, Flame, Zap, RotateCcw, Check, Sparkles, Target } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { saveLeaderboardEntry } from '../utils/leaderboardStorage';
+import { AnswerReviewPlayer } from './AnswerReviewPlayer';
 
 interface GameOverModalProps {
   difficulty: GameDifficulty;
@@ -10,6 +11,8 @@ interface GameOverModalProps {
   history: AnswerResult[];
   onRestart: () => void;
   onOpenLeaderboard: () => void;
+  /** Feature 4: 回答音階（省略可。渡された場合のみ楽譜と聴き直しを表示） */
+  answerNotes?: NoteInfo[];
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -18,6 +21,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   history,
   onRestart,
   onOpenLeaderboard,
+  answerNotes,
 }) => {
   const [playerName, setPlayerName] = useState<string>('');
   const [isSaved, setIsSaved] = useState<boolean>(false);
@@ -234,6 +238,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         )}
       </div>
+
+      {/* Feature 4: answer staff + review playback (only when notes provided) */}
+      {answerNotes && answerNotes.length > 0 && (
+        <AnswerReviewPlayer
+          notes={answerNotes}
+          correctFlags={history.map((h) => h.isExact)}
+        />
+      )}
 
       {/* Footer Navigation Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">

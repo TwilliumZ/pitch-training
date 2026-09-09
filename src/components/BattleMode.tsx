@@ -5,6 +5,10 @@ import { generateGameQuestions, calculateClosenessScore, calculateSpeedBonus, ca
 import { playNoteSound } from '../utils/audioSynthesizer';
 import { ChoicesGrid } from './ChoicesGrid';
 import { TimerSpeedBar } from './TimerSpeedBar';
+import { BgmLoopPlayer } from './BgmLoopPlayer';
+import { AuditionKeyboard } from './AuditionKeyboard';
+import { AnswerStaff } from './AnswerStaff';
+import { AnswerReviewPlayer } from './AnswerReviewPlayer';
 
 interface BattleModeProps {
   difficulty: GameDifficulty;
@@ -58,6 +62,10 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
   const [remaining, setRemaining] = useState<number>(10);
   const [isPlayingSound, setIsPlayingSound] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  // 回答履歴（五線譜表示と比較再生用。採点処理には触らない）
+  const [answers, setAnswers] = useState<{ note: NoteInfo; isExact: boolean; qNumber: number }[]>([]);
+  // サーバー状態の前回値（新規ラウンド開始の検出用）
+  const prevStatusRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const startRef = useRef<number>(0);
 
@@ -69,11 +77,18 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
     try {
       const s = (await api(serverUrl, `/api/rooms/${roomId}/state`)) as ServerState;
       setServerState(s);
-      if ((s.status === 'playing' || s.status === 'finished') && s.questions && questions.length === 0) {
+      // 新規ラウンド検出: playing に入った瞬間は出題を同期し直す
+      // （ホスト再開時にゲスト側の進行がずれないようにする）
+      const prev = prevStatusRef.current;
+      prevStatusRef.current = s.status;
+      const newRound = s.status === 'playing' && prev !== 'playing';
+      if ((s.status === 'playing' || s.status === 'finished') && s.questions && (questions.length === 0 || newRound)) {
         setQuestions(s.questions);
         setIdx(0);
         setScore(0);
         setStreak(0);
+        setSubmitted(false);
+        setAnswers([]);
       }
     } catch {
       // ポーリング失敗は無視
@@ -83,9 +98,10 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
   useEffect(() => {
     if (!joined) return;
     pollState();
-    const t = window.setInterval(pollState, 2000);
+    // 出題中は同期をこまめに（1秒）、待機中は負荷軽減（2秒）
+    const t = window.setInterval(pollState, phase === 'playing' ? 1000 : 2000);
     return () => window.clearInterval(t);
-  }, [joined, pollState]);
+  }, [joined, pollState, phase]);
 
   // 出題再生+タイマー
   useEffect(() => {
@@ -153,6 +169,8 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
       setIdx(0);
       setScore(0);
       setStreak(0);
+      setSubmitted(false);
+      setAnswers([]);
       await pollState();
     } catch (e) {
       setError(e instanceof Error ? e.message : '開始失敗');
@@ -177,6 +195,8 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
     const total = score + gained;
     setScore(total);
     setStreak(ns);
+    // 回答履歴に記録（五線譜表示と比較再生用）
+    setAnswers((prev) => [...prev, { note, isExact: closeness.semitoneDiff === 0, qNumber: current.questionNumber }]);
     if (idx < questions.length - 1) {
       setIdx(idx + 1);
     } else {
@@ -251,10 +271,30 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
 
       {phase === 'playing' && current && (
         <div className="space-y-4">
+          {/* Feature 3: BGM loop while playing (stops automatically on exit) */}
+          <BgmLoopPlayer />
           <div className="flex justify-between text-xs text-slate-300">
             <span>Q{current.questionNumber}/{questions.length}</span>
             <span className="font-mono text-amber-400 font-black">{score.toLocaleString()}pt</span>
           </div>
+          {/* 同期表示: 他メンバーの確定状況（1秒ごとに更新） */}
+          {serverState && serverState.players.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]" role="status">
+              <span className="text-slate-400 font-bold">同期中</span>
+              {serverState.players.map((p) => (
+                <span
+                  key={p.name}
+                  className={`px-2 py-0.5 rounded-full border font-bold ${
+                    p.finished
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}
+                >
+                  {p.name}: {p.finished ? `${p.score.toLocaleString()}pt確定` : '対戦中'}
+                </span>
+              ))}
+            </div>
+          )}
           <TimerSpeedBar remainingTime={remaining} totalTime={10} />
           <button
             type="button"
@@ -264,6 +304,19 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
             <Volume2 className="w-5 h-5" /> {isPlayingSound ? '再生中…' : 'もう一度聴く'}
           </button>
           <ChoicesGrid choices={current.choices} selectedNote={null} onSelect={handleAnswer} disabled={isPlayingSound} />
+          {/* 音確認鍵盤（試聴のみ） */}
+          <AuditionKeyboard disabled={isPlayingSound} />
+          {/* これまでの回答の五線譜（継続表示） */}
+          {answers.length > 0 && (
+            <div className="bg-white rounded-2xl p-3 border border-moss-200 space-y-2">
+              <p className="text-xs font-bold text-slate-600">これまでの回答の五線譜</p>
+              <AnswerStaff
+                notes={answers.map((a) => a.note)}
+                correctFlags={answers.map((a) => a.isExact)}
+                labels={answers.map((a) => `Q${a.qNumber}`)}
+              />
+            </div>
+          )}
           <div className="text-xs text-slate-400">他メンバーの途中経過は終了後に表示されます</div>
         </div>
       )}
@@ -275,6 +328,20 @@ export const BattleMode: React.FC<BattleModeProps> = ({ difficulty, numQuestions
             <div className="text-2xl font-black text-white">{score.toLocaleString()}pt</div>
             <div className="text-xs text-slate-400">あなたの確定スコア</div>
           </div>
+          {/* 回答と正解の聞き比べ */}
+          {answers.length > 0 && (
+            <AnswerReviewPlayer
+              notes={answers.map((a) => a.note)}
+              correctFlags={answers.map((a) => a.isExact)}
+            />
+          )}
+          {questions.length > 0 && (
+            <AnswerReviewPlayer
+              notes={questions.map((q) => q.targetNote)}
+              title="正解の楽譜"
+              playLabel="正解を聴き直す"
+            />
+          )}
           <div className="space-y-1.5">
             {ranking.map((p, i) => (
               <div key={p.name} className={`flex justify-between rounded-xl px-3 py-2 text-sm border ${p.name === playerName ? 'bg-indigo-600/20 border-indigo-500/40' : 'bg-slate-950/60 border-slate-800'}`}>

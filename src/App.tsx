@@ -40,6 +40,8 @@ import { RulesModal } from './components/RulesModal';
 import { StartScreen } from './components/StartScreen';
 import { SettingsScreen } from './components/SettingsScreen'; 
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
+import { CountdownOverlay } from './components/CountdownOverlay';
+import { AuditionKeyboard } from './components/AuditionKeyboard';
 import { BattleMode } from './components/BattleMode';
 import { CoopMode } from './components/CoopMode';
 
@@ -75,6 +77,12 @@ export default function App() {
   // Timer interval ref
   const timerRef = useRef<number | null>(null);
 
+  // Feature 1: pre-question countdown (null = finished/ready, number = ticks left)
+  const COUNTDOWN_TICKS = 2;
+  const COUNTDOWN_TICK_MS = 800;
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownDoneRef = useRef<number>(-1);
+
   const currentQuestion = questions[currentQuestionIndex] || null;
 
   // 1. Start a new game -> First show Reference Tone Screen
@@ -94,12 +102,15 @@ export default function App() {
     setHistory([]);
     setLastRoundResult(null);
     setSelectedNoteChoice(null);
+    countdownDoneRef.current = -1;
+    setCountdown(null);
     setScreen('reference_tone');
   }, [difficulty, numQuestions, allowDuplicates]);
 
 // Homeに戻る: タイマー停止 + start画面へ
   const handleGoHome = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    setCountdown(null);
     setScreen('start');
   }, []);
 
@@ -117,8 +128,27 @@ export default function App() {
   }, []);
 
   // 2. Setup each question when index changes or screen becomes 'playing'
+  // Feature 1: run a short countdown per question before sounding,
+  // so users are not startled by a sudden note.
   useEffect(() => {
     if (screen !== 'playing' || !currentQuestion) return;
+
+    if (countdownDoneRef.current !== currentQuestionIndex) {
+      if (countdown === null) {
+        setCountdown(COUNTDOWN_TICKS);
+        return;
+      }
+      if (countdown > 0) {
+        const t = window.setTimeout(
+          () => setCountdown((c) => (c === null ? null : c - 1)),
+          COUNTDOWN_TICK_MS
+        );
+        return () => window.clearTimeout(t);
+      }
+      countdownDoneRef.current = currentQuestionIndex;
+      setCountdown(null);
+      return;
+    }
 
     // Reset round states
     setSelectedNoteChoice(null);
@@ -160,7 +190,7 @@ export default function App() {
       clearTimeout(soundTimer);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [screen, currentQuestionIndex, questions]);
+  }, [screen, currentQuestionIndex, questions, countdown]);
 
   // 3. Handle Answer Submission (from voice recognition or click)
   const handleAnswer = useCallback(
@@ -279,7 +309,7 @@ export default function App() {
   // Keyboard shortcut listener (1, 2, 3, 4 for choices, R for replay)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (screen !== 'playing' || !currentQuestion || showHistory) return;
+      if (screen !== 'playing' || !currentQuestion || showHistory || countdown !== null) return;
 
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -296,7 +326,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screen, currentQuestion, handleAnswer, showHistory]);
+  }, [screen, currentQuestion, handleAnswer, showHistory, countdown]);
 
   return (
     <div className="min-h-screen bg-moss-50 text-slate-800 flex flex-col font-sans selection:bg-moss-200 selection:text-slate-800">
@@ -349,7 +379,15 @@ export default function App() {
           />
         )}
 
-        {screen === 'playing' && currentQuestion && (
+        {screen === 'playing' && currentQuestion && countdown !== null && (
+          <CountdownOverlay
+            questionNumber={currentQuestion.questionNumber}
+            totalQuestions={questions.length}
+            count={countdown}
+          />
+        )}
+
+        {screen === 'playing' && currentQuestion && countdown === null && (
           <div className="w-full space-y-4 animate-in fade-in duration-200">
             {/* Header with question progress, streak, and additive score */}
             <ScoreHeader
@@ -369,6 +407,9 @@ export default function App() {
               onPlaySound={handlePlayQuestionSound}
               replayCount={replayCount}
             />
+
+            {/* Feature 2: free audition keyboard (playback only, no scoring) */}
+            <AuditionKeyboard />
 
             {/* Choices Grid (4 choices to select directly by clicking/tapping or 1-4 keys) */}
             <ChoicesGrid
@@ -401,6 +442,7 @@ export default function App() {
             history={history}
             onRestart={handleStartGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
+            answerNotes={history.map((h) => h.chosenNote)}
           />
           </>
         )}
