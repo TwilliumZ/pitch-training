@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AnswerResult, GameQuestion } from '../types';
-import { ALL_NOTES, createMistakePracticeQuestions } from './notesData';
+import { ALL_NOTES, calculateClosenessScore, createMistakePracticeQuestions } from './notesData';
 
 const question = (questionNumber: number): GameQuestion => ({
   id: `q-${questionNumber}`,
@@ -45,4 +45,16 @@ test('時間切れはフォールバック回答が一致していても練習�
 test('全問正解または回答不足なら空の練習セットを返す', () => {
   const questions = [question(1), question(2)];
   assert.deepEqual(createMistakePracticeQuestions(questions, [answer(1, true)]), []);
+});
+
+test('認識音が出題音と一致すれば正解として判定する', () => {
+  const result = calculateClosenessScore(ALL_NOTES[0], ALL_NOTES[0]);
+  assert.equal(result.semitoneDiff, 0);
+  assert.equal(result.score, 1000);
+});
+
+test('認識音が出題音と異なれば半音差を付けて誤答判定する', () => {
+  const result = calculateClosenessScore(ALL_NOTES[0], ALL_NOTES[2]);
+  assert.equal(result.semitoneDiff, 2);
+  assert.equal(result.score, 400);
 });
