@@ -17,6 +17,7 @@ import {
   calculateClosenessScore,
   calculateSpeedBonus,
   calculateStreakBonus,
+  createMistakePracticeQuestions,
 } from './utils/notesData';
 import {
   playNoteSound,
@@ -215,12 +216,18 @@ export default function App() {
       const closeness = calculateClosenessScore(currentQuestion.targetNote, chosenNote);
 
       // 2. Speed Bonus (only rewarded if semitone diff is within 2)
-      const speedBonus = closeness.semitoneDiff <= 2 ? calculateSpeedBonus(elapsedSec, 10.0) : 0;
+      const isTimeout = rawText === '時間切れ';
+      const closenessScore = isTimeout ? 0 : closeness.score;
+      const speedBonus = !isTimeout && closeness.semitoneDiff <= 2
+        ? calculateSpeedBonus(elapsedSec, 10.0)
+        : 0;
 
       // 3. Streak Bonus
       let newStreak = 0;
       let streakBonus = 0;
-      const isExact = closeness.semitoneDiff === 0;
+      // A timeout is always incorrect. The fallback choice is only needed to
+      // satisfy the answer shape and must never turn into an accidental success.
+      const isExact = !isTimeout && closeness.semitoneDiff === 0;
 
       if (isExact) {
         newStreak = currentStreak + 1;
@@ -236,7 +243,7 @@ export default function App() {
       }
 
       // Additive total
-      const roundTotal = closeness.score + speedBonus + streakBonus;
+      const roundTotal = closenessScore + speedBonus + streakBonus;
       const updatedTotalScore = cumulativeScore + roundTotal;
 
       // Audio feedback chime
@@ -255,7 +262,7 @@ export default function App() {
         targetNote: currentQuestion.targetNote,
         chosenNote,
         semitoneDiff: closeness.semitoneDiff,
-        closenessScore: closeness.score,
+        closenessScore,
         speedBonus,
         streakBonus,
         totalRoundScore: roundTotal,
@@ -294,6 +301,25 @@ export default function App() {
       setScreen('game_over');
     }
   }, [currentQuestionIndex, questions.length, saveCompletedGame]);
+
+  const handlePracticeMistakes = useCallback(() => {
+    const mistakeQuestions = createMistakePracticeQuestions(questions, history);
+    if (mistakeQuestions.length === 0) return;
+
+    gameId.current = crypto.randomUUID();
+    setSaveError(false);
+    getAudioContext();
+    setQuestions(mistakeQuestions);
+    setCurrentQuestionIndex(0);
+    setCumulativeScore(0);
+    setCurrentStreak(0);
+    setHistory([]);
+    setLastRoundResult(null);
+    setSelectedNoteChoice(null);
+    countdownDoneRef.current = -1;
+    setCountdown(null);
+    setScreen('reference_tone');
+  }, [questions, history]);
 
   // 5. Sound replay handler
   const handlePlayQuestionSound = () => {
@@ -441,6 +467,7 @@ export default function App() {
             totalScore={cumulativeScore}
             history={history}
             onRestart={handleStartGame}
+            onPracticeMistakes={handlePracticeMistakes}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             answerNotes={history.map((h) => h.chosenNote)}
           />
