@@ -7,6 +7,7 @@ interface StartScreenProps {
   difficulty: GameDifficulty;
   onSelectDifficulty: (diff: GameDifficulty) => void;
   onStartGame: () => void;
+  onStartVoiceGame: () => void;
   onOpenLeaderboard: () => void;
   onOpenRules: () => void;
   onOpenSettings: () => void;
@@ -22,6 +23,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   difficulty,
   onSelectDifficulty,
   onStartGame,
+  onStartVoiceGame,
   onOpenLeaderboard,
   onOpenRules,
   onOpenSettings,
@@ -195,7 +197,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       </details>
 
-{/* Start Button */}
+{/* Game mode entry points */}
       <div className="space-y-3 pt-1">
         <button
           id="btn-start-game-main"
@@ -203,8 +205,18 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           onClick={onStartGame}
           className="w-full py-4 rounded-2xl bg-moss-500 hover:bg-moss-600 text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-moss-200 transition-all transform active:scale-98">
           <Play className="w-5 h-5 fill-white" />
-          <span>ゲームスタート (全{clampedCount}問)</span>
+          <span>選択式で遊ぶ (全{clampedCount}問)</span>
         </button>
+        <button
+          id="btn-start-voice-game"
+          type="button"
+          onClick={onStartVoiceGame}
+          className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 transition-all transform active:scale-98"
+        >
+          <Music className="w-5 h-5" />
+          <span>🎤 音声回答モードで遊ぶ</span>
+        </button>
+        <p className="text-[11px] text-slate-400">指定された「ド・レ・ミ」を発声し、torchaudio が音程を判定します</p>
         <button type="button" onClick={onOpenSettings} className="w-full py-3 rounded-2xl bg-white border border-moss-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-2">
   <Settings className="w-4 h-4" />
   <span>設定</span>

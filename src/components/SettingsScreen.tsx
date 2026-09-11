@@ -1,12 +1,14 @@
 import React from 'react';
-import { ArrowLeft, Trophy, HelpCircle, Volume2, VolumeX } from 'lucide-react';
-import { GameDifficulty } from '../types';
+import { ArrowLeft, Trophy, HelpCircle, Volume2, VolumeX, Mic, MousePointerClick } from 'lucide-react';
+import { AnswerMode, GameDifficulty } from '../types';
 
 interface SettingsScreenProps {
   difficulty: GameDifficulty;
   onSelectDifficulty: (diff: GameDifficulty) => void;
   speechEnabled: boolean;
   onToggleSpeech: () => void;
+  answerMode: AnswerMode;
+  onSelectAnswerMode: (mode: AnswerMode) => void;
   onOpenLeaderboard: () => void;
   onOpenRules: () => void;
   onBack: () => void;
@@ -17,6 +19,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onSelectDifficulty,
   speechEnabled,
   onToggleSpeech,
+  answerMode,
+  onSelectAnswerMode,
   onOpenLeaderboard,
   onOpenRules,
   onBack,
@@ -73,6 +77,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </div>
           </button>
         </div>
+      </div>
+
+      {/* Speech toggle (moved from Navbar) */}
+      <div className="bg-moss-50/60 rounded-2xl p-3.5 border border-moss-100 text-left space-y-2">
+        <span className="text-xs font-bold text-slate-500 block">回答方法</span>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => onSelectAnswerMode('choice')} className={`p-3 rounded-xl border transition-all ${answerMode === 'choice' ? 'bg-moss-500 border-moss-500 text-white' : 'bg-white border-moss-200 text-slate-500'}`}>
+            <MousePointerClick className="w-5 h-5 mx-auto mb-1" /><span className="text-xs font-bold">音当て・選択式</span>
+          </button>
+          <button type="button" onClick={() => onSelectAnswerMode('voice')} className={`p-3 rounded-xl border transition-all ${answerMode === 'voice' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-moss-200 text-slate-500'}`}>
+            <Mic className="w-5 h-5 mx-auto mb-1" /><span className="text-xs font-bold">音声回答</span>
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-400">音声回答では指定された音を歌い、torchaudio が音高を判定します。</p>
       </div>
 
       {/* Speech toggle (moved from Navbar) */}

@@ -1,333 +1,130 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Volume2, Sparkles, Music } from 'lucide-react';
-import { NoteInfo, VoiceInputMode } from '../types';
-import { matchSpeechToChoice } from '../utils/voiceManager';
-import { autoCorrelate, frequencyToMidi, getAudioContext } from '../utils/audioSynthesizer';
-import { ALL_NOTES } from '../utils/notesData';
+import { LoaderCircle, Mic, MicOff, RotateCcw, ServerCrash } from 'lucide-react';
+import type { NoteInfo } from '../types';
+import { AnswerStaff } from './AnswerStaff';
+import { encodeMonoWav, noteFromDetectedMidi, recognizePitch } from '../utils/pitchRecognition';
 
 interface VoiceAnswerControllerProps {
-  choices: NoteInfo[];
-  onSelectNote: (note: NoteInfo, via: 'voice_speech' | 'voice_singing', rawText?: string) => void;
+  onSelectNote: (note: NoteInfo, via: 'voice_singing', rawText?: string) => void;
   disabled?: boolean;
 }
 
-export const VoiceAnswerController: React.FC<VoiceAnswerControllerProps> = ({
-  choices,
-  onSelectNote,
-  disabled = false,
-}) => {
-  const [mode, setMode] = useState<VoiceInputMode>('speech');
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [micVolume, setMicVolume] = useState<number>(0);
-  const [transcript, setTranscript] = useState<string>('');
-  const [detectedPitchNote, setDetectedPitchNote] = useState<{ noteName: string; freq: number } | null>(null);
-  const [micPermissionState, setMicPermissionState] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+type RecorderState = 'idle' | 'recording' | 'analyzing';
+const RECORDING_MS = 1800;
+
+export const VoiceAnswerController: React.FC<VoiceAnswerControllerProps> = ({ onSelectNote, disabled = false }) => {
+  const [state, setState] = useState<RecorderState>('idle');
+  const [micLevel, setMicLevel] = useState(0);
+  const [detectedNote, setDetectedNote] = useState<NoteInfo | null>(null);
+  const [detectedFrequency, setDetectedFrequency] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const contextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const samplesRef = useRef<Float32Array[]>([]);
+  const timeoutRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Audio / Speech recognition refs
-  const recognitionRef = useRef<any>(null);
-  const audioStreamRef = useRef<MediaStream | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const pitchHoldRef = useRef<{ noteId: string; count: number }>({ noteId: '', count: 0 });
+  const releaseRecorder = () => {
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+    processorRef.current?.disconnect();
+    sourceRef.current?.disconnect();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    void contextRef.current?.close();
+    processorRef.current = null;
+    sourceRef.current = null;
+    streamRef.current = null;
+    contextRef.current = null;
+    setMicLevel(0);
+  };
 
-  // 1. Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognitionClass =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  useEffect(() => () => {
+    releaseRecorder();
+    abortRef.current?.abort();
+  }, []);
 
-    if (SpeechRecognitionClass) {
-      const recognition = new SpeechRecognitionClass();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'ja-JP';
-
-      recognition.onresult = (event: any) => {
-        if (disabled) return;
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        const heard = (finalTranscript || interimTranscript).trim();
-        if (heard) {
-          setTranscript(heard);
-          // Attempt match with choices
-          const match = matchSpeechToChoice(heard, choices);
-          if (match) {
-            onSelectNote(match.matchedNote, 'voice_speech', heard);
-          }
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error === 'not-allowed') {
-          setMicPermissionState('denied');
-          setErrorMessage('マイクのアクセスがブロックされています。ブラウザの設定で許可してください。');
-        } else if (event.error !== 'no-speech') {
-          console.warn('Speech recognition event error:', event.error);
-        }
-      };
-
-      recognition.onend = () => {
-        // Auto-restart if listening and not disabled
-        if (isListening && !disabled) {
-          try {
-            recognition.start();
-          } catch {
-            // Ignore restart collisions
-          }
-        }
-      };
-
-      recognitionRef.current = recognition;
-    } else {
-      setErrorMessage('お使いのブラウザは音声認識APIに対応していません。選択肢をクリックして回答できます。');
+  const finishRecording = async () => {
+    const sampleRate = contextRef.current?.sampleRate ?? 48_000;
+    const chunks = samplesRef.current;
+    releaseRecorder();
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const samples = new Float32Array(totalLength);
+    let offset = 0;
+    chunks.forEach((chunk) => {
+      samples.set(chunk, offset);
+      offset += chunk.length;
+    });
+    if (samples.length < sampleRate / 4) {
+      setState('idle');
+      setErrorMessage('録音が短すぎます。マイクに向かって1秒ほど発声してください。');
+      return;
     }
-
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, [choices, disabled, onSelectNote, isListening]);
-
-  // 2. Microphone Stream & Pitch Detection Setup
-  const startMicAudio = async () => {
+    setState('analyzing');
+    const abort = new AbortController();
+    abortRef.current = abort;
     try {
+      const result = await recognizePitch(encodeMonoWav(samples, sampleRate), abort.signal);
+      const note = noteFromDetectedMidi(result.midiNumber);
+      if (!note) throw new Error(`検出した音（${result.noteName}）は出題範囲外です。中央のド〜高いドで発声してください。`);
+      setDetectedNote(note);
+      setDetectedFrequency(result.frequencyHz);
       setErrorMessage(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      audioStreamRef.current = stream;
-      setMicPermissionState('granted');
-      setIsListening(true);
+      onSelectNote(note, 'voice_singing', `torchaudio: ${result.frequencyHz.toFixed(1)}Hz / 信頼度 ${Math.round(result.confidence * 100)}%`);
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') setErrorMessage((error as Error).message);
+      setState('idle');
+    }
+  };
 
-      const ctx = getAudioContext();
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-
-      // Start Web Speech Recognition if available
-      if (recognitionRef.current && (mode === 'speech' || mode === 'both')) {
-        try {
-          recognitionRef.current.start();
-        } catch {
-          // May already be active
-        }
-      }
-
-      // Start Audio Visualizer & Pitch Loop
-      const buf = new Float32Array(analyser.fftSize);
-      const checkAudio = () => {
-        if (!analyserRef.current) return;
-        analyserRef.current.getFloatTimeDomainData(buf);
-
-        const { freq, rms } = autoCorrelate(buf, ctx.sampleRate);
-        setMicVolume(Math.min(1, rms * 8));
-
-        // If in singing/pitch mode, evaluate pitch
-        if ((mode === 'pitch' || mode === 'both') && !disabled) {
-          if (freq > 0) {
-            const { midi } = frequencyToMidi(freq);
-            const foundNote = ALL_NOTES.find((n) => n.midiNumber === midi);
-            if (foundNote) {
-              setDetectedPitchNote({ noteName: `${foundNote.nameJa} (${foundNote.nameEn})`, freq: Math.round(freq) });
-
-              // Pitch stabilization check (hold for ~6 frames)
-              if (pitchHoldRef.current.noteId === foundNote.id) {
-                pitchHoldRef.current.count += 1;
-                if (pitchHoldRef.current.count >= 6) {
-                  // Check if this matches one of the 4 choices!
-                  const matchedChoice = choices.find((c) => c.id === foundNote.id);
-                  if (matchedChoice) {
-                    onSelectNote(matchedChoice, 'voice_singing', `歌声ピッチ ${Math.round(freq)}Hz`);
-                    pitchHoldRef.current = { noteId: '', count: 0 };
-                  }
-                }
-              } else {
-                pitchHoldRef.current = { noteId: foundNote.id, count: 1 };
-              }
-            }
-          }
-        }
-
-        animationFrameRef.current = requestAnimationFrame(checkAudio);
+  const startRecording = async () => {
+    if (disabled || state !== 'idle') return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorMessage('このブラウザはマイク録音に対応していません。');
+      return;
+    }
+    setErrorMessage(null);
+    setDetectedNote(null);
+    setDetectedFrequency(null);
+    samplesRef.current = [];
+    try {
+      // 持続する歌声を「背景ノイズ」として除去しないよう音声補正を無効化する。
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+      const context = new AudioContext();
+      await context.resume();
+      const source = context.createMediaStreamSource(stream);
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = (event) => {
+        const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
+        samplesRef.current.push(chunk);
+        const rms = Math.sqrt(chunk.reduce((sum, value) => sum + value * value, 0) / chunk.length);
+        setMicLevel(Math.min(1, rms * 10));
       };
-
-      animationFrameRef.current = requestAnimationFrame(checkAudio);
-    } catch (err: any) {
-      console.warn('Microphone access failed:', err);
-      setMicPermissionState('denied');
-      setErrorMessage('マイクの許可が必要です。ブラウザの設定でマイクを許可するか、選択肢をクリックして回答してください。');
-      setIsListening(false);
+      source.connect(processor);
+      processor.connect(context.destination);
+      streamRef.current = stream;
+      contextRef.current = context;
+      sourceRef.current = source;
+      processorRef.current = processor;
+      setState('recording');
+      timeoutRef.current = window.setTimeout(() => void finishRecording(), RECORDING_MS);
+    } catch {
+      releaseRecorder();
+      setState('idle');
+      setErrorMessage('マイクを開始できません。ブラウザのサイト設定でマイクを許可してください。');
     }
   };
-
-  const stopMicAudio = () => {
-    setIsListening(false);
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    if (audioStreamRef.current) {
-      audioStreamRef.current.getTracks().forEach((track) => track.stop());
-      audioStreamRef.current = null;
-    }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // ignore
-      }
-    }
-    setMicVolume(0);
-    setTranscript('');
-    setDetectedPitchNote(null);
-  };
-
-  // Start mic automatically when component mounts if not disabled
-  useEffect(() => {
-    if (!disabled && micPermissionState !== 'denied') {
-      startMicAudio();
-    }
-    return () => {
-      stopMicAudio();
-    };
-  }, [disabled]);
 
   return (
-    <div className="w-full bg-slate-900/80 rounded-2xl p-4 border border-indigo-500/20 shadow-lg space-y-3">
-      {/* Header bar: Mic status and Mode toggles */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          {/* Active Mic Indicator */}
-          <button
-            type="button"
-            onClick={isListening ? stopMicAudio : startMicAudio}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
-              isListening
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30'
-            }`}
-          >
-            {isListening ? (
-              <>
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <Mic className="w-4 h-4 text-emerald-400" />
-                <span>音声入力中 (声で解答)</span>
-              </>
-            ) : (
-              <>
-                <MicOff className="w-4 h-4 text-rose-400" />
-                <span>マイク停止中 (クリックで開始)</span>
-              </>
-            )}
-          </button>
-
-          {/* Mode Selector */}
-          <div className="inline-flex rounded-xl bg-slate-800/80 p-0.5 border border-slate-700 text-xs">
-            <button
-              type="button"
-              onClick={() => setMode('speech')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                mode === 'speech' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="声で『ド』『レ』『1番』などと言って解答"
-            >
-              発声認識
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('pitch')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                mode === 'pitch' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="声やハミングで歌って解答"
-            >
-              歌声ピッチ
-            </button>
-          </div>
-        </div>
-
-        <span className="text-[11px] text-slate-400 hidden sm:inline">
-          ※ 画面の選択肢をクリックしても解答できます
-        </span>
-      </div>
-
-      {/* Real-time Visualizer & Transcript bar */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 bg-slate-950/60 rounded-xl p-3 border border-slate-800/70">
-        {/* Dynamic Mic Waveform meter */}
-        <div className="flex items-center gap-1 h-6 shrink-0">
-          {[0.2, 0.5, 0.9, 0.4, 0.8, 1.0, 0.6, 0.3].map((multiplier, idx) => {
-            const h = Math.max(4, micVolume * multiplier * 24);
-            return (
-              <div
-                key={idx}
-                className="w-1.5 rounded-full bg-emerald-400 transition-all duration-75"
-                style={{
-                  height: isListening ? `${h}px` : '4px',
-                  opacity: isListening ? 0.4 + micVolume * 0.6 : 0.2,
-                }}
-              />
-            );
-          })}
-        </div>
-
-        {/* Live recognition feedback text */}
-        <div className="flex-1 text-center sm:text-left overflow-hidden">
-          {mode === 'speech' ? (
-            <div className="flex items-center justify-center sm:justify-start gap-2 text-xs">
-              <span className="text-slate-400">マイクの音声:</span>
-              {transcript ? (
-                <span className="font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-md border border-indigo-500/30 truncate max-w-[280px]">
-                  「{transcript}」
-                </span>
-              ) : (
-                <span className="text-slate-400 italic">
-                  「ド」「ミ」「1番」などと発声してください...
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center sm:justify-start gap-2 text-xs">
-              <Music className="w-3.5 h-3.5 text-purple-400" />
-              <span className="text-slate-400">歌声ピッチ:</span>
-              {detectedPitchNote ? (
-                <span className="font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/30">
-                  {detectedPitchNote.noteName} ({detectedPitchNote.freq}Hz)
-                </span>
-              ) : (
-                <span className="text-slate-400 italic">
-                  マイクに向かって声で音程を歌ってください（アー、ウーなど）...
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {errorMessage && (
-        <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl flex items-center gap-2">
-          <Volume2 className="w-4 h-4 shrink-0 text-amber-400" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-    </div>
+    <section className="w-full rounded-2xl border border-indigo-200 bg-indigo-50 p-4 space-y-3" aria-label="音声回答">
+      <div className="text-center"><p className="text-sm font-black text-indigo-900">マイクに向かって指定された高さの音を発声</p><p className="text-xs text-indigo-600 mt-1">「アー」など、一定の声を約2秒伸ばしてください</p></div>
+      {detectedNote && <div className="rounded-xl border border-emerald-200 bg-white px-3 pt-2 text-center" role="status"><p className="text-xs font-bold text-emerald-700">認識した音: {detectedNote.nameJa}（{detectedNote.nameEn} / {detectedFrequency?.toFixed(1)}Hz）</p><div className="max-w-xs mx-auto"><AnswerStaff notes={[detectedNote]} labels={['回答']} /></div></div>}
+      <button type="button" onClick={() => void startRecording()} disabled={disabled || state !== 'idle'} className={`w-full min-h-16 rounded-2xl font-black flex items-center justify-center gap-3 transition-all ${state === 'recording' ? 'bg-rose-500 text-white' : state === 'analyzing' ? 'bg-indigo-300 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} disabled:cursor-not-allowed`}>
+        {state === 'recording' ? <><Mic className="w-6 h-6" /><span>録音中… 声を伸ばしてください</span></> : state === 'analyzing' ? <><LoaderCircle className="w-6 h-6 animate-spin" /><span>torchaudio で音高を解析中…</span></> : <><MicOff className="w-6 h-6" /><span>{errorMessage ? 'もう一度録音する' : 'タップして音声で回答'}</span></>}
+      </button>
+      {state === 'recording' && <div className="h-2 rounded-full bg-indigo-100 overflow-hidden" aria-label="マイク入力レベル"><div className="h-full bg-rose-500 transition-all duration-75" style={{ width: `${Math.max(3, micLevel * 100)}%` }} /></div>}
+      {errorMessage && <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-3 rounded-xl flex gap-2" role="alert">{errorMessage.includes('サーバー') || errorMessage.includes('解析') ? <ServerCrash className="w-4 h-4 shrink-0" /> : <RotateCcw className="w-4 h-4 shrink-0" />}<span>{errorMessage}</span></div>}
+    </section>
   );
 };

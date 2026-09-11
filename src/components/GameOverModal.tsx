@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnswerResult, GameDifficulty, NoteInfo } from '../types';
-import { Trophy, Award, Flame, Zap, RotateCcw, Check, Sparkles, Target } from 'lucide-react';
+import { Trophy, Award, Flame, Zap, RotateCcw, Check, Target, Repeat2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { saveLeaderboardEntry } from '../utils/leaderboardStorage';
 import { AnswerReviewPlayer } from './AnswerReviewPlayer';
@@ -10,6 +10,7 @@ interface GameOverModalProps {
   totalScore: number;
   history: AnswerResult[];
   onRestart: () => void;
+  onPracticeMistakes: () => void;
   onOpenLeaderboard: () => void;
   /** Feature 4: 回答音階（省略可。渡された場合のみ楽譜と聴き直しを表示） */
   answerNotes?: NoteInfo[];
@@ -20,6 +21,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   difficulty,
   history,
   onRestart,
+  onPracticeMistakes,
   onOpenLeaderboard,
   answerNotes,
 }) => {
@@ -42,6 +44,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   // Stats
   const totalQuestions = history.length || 5;
   const perfectCount = history.filter((h) => h.isExact).length;
+  const mistakeCount = history.filter((h) => !h.isExact || h.rawInputText === '時間切れ').length;
   const maxStreak = Math.max(0, ...history.map((h) => h.streakCountAfter));
   const avgTime =
     history.length > 0
@@ -249,6 +252,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
       {/* Footer Navigation Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        {mistakeCount > 0 && (
+          <button
+            id="btn-practice-mistakes"
+            type="button"
+            onClick={onPracticeMistakes}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-200 transition-all transform active:scale-95"
+          >
+            <Repeat2 className="w-4 h-4" />
+            <span>間違えた{mistakeCount}問を練習</span>
+          </button>
+        )}
+
         <button
           id="btn-restart-game"
           type="button"

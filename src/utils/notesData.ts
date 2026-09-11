@@ -1,4 +1,4 @@
-import { GameDifficulty, GameQuestion, NoteInfo } from '../types';
+import { AnswerResult, GameDifficulty, GameQuestion, NoteInfo } from '../types';
 
 export const ALL_NOTES: NoteInfo[] = [
   {
@@ -208,6 +208,28 @@ export function generateGameQuestions(
   });
 
   return questions;
+}
+
+/**
+ * Create a new practice set containing only questions answered incorrectly.
+ * Questions and answers are matched by play order because question numbers are
+ * renumbered for every practice set.
+ */
+export function createMistakePracticeQuestions(
+  questions: GameQuestion[],
+  answers: AnswerResult[]
+): GameQuestion[] {
+  return questions
+    .filter((_, index) => {
+      const answer = answers[index];
+      return answer && (!answer.isExact || answer.rawInputText === '時間切れ');
+    })
+    .map((question, index) => ({
+      ...question,
+      id: `review_${index + 1}_${crypto.randomUUID()}`,
+      questionNumber: index + 1,
+      choices: [...question.choices],
+    }));
 }
 
 /**

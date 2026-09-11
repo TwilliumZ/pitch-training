@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { AnswerResult } from '../types';
 import { Volume2, ArrowRight, Flame, Zap, Target, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import { playNoteSound } from '../utils/audioSynthesizer';
+import { AnswerStaff } from './AnswerStaff';
 
 interface RoundResultBreakdownProps {
   result: AnswerResult;
@@ -37,7 +38,12 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
       {/* Top Banner: Exact or Near */}
       <div className="text-center space-y-1">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-black mb-1 shadow-sm">
-          {result.isExact ? (
+          {result.rawInputText === '時間切れ' ? (
+            <span className="flex items-center gap-1.5 text-amber-700 bg-amber-100 border border-amber-300 px-4 py-1 rounded-full">
+              <AlertCircle className="w-4 h-4" />
+              時間切れ（0pt）
+            </span>
+          ) : result.isExact ? (
             <span className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-4 py-1 rounded-full">
               <CheckCircle2 className="w-4 h-4" />
               完全正解！ ピタリ一致 (+1,000pt)
@@ -56,7 +62,9 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
         </div>
         <h3 className="text-2xl font-black text-slate-800">第 {result.questionNumber} 問の採点結果</h3>
         <p className="text-xs text-slate-500">
-          {result.answeredVia === 'click'
+          {result.rawInputText === '時間切れ'
+            ? '制限時間内に回答できませんでした'
+            : result.answeredVia === 'click'
             ? `🎯 選択肢から「${result.chosenNote.nameJa}」を選択して解答`
             : result.answeredVia === 'voice_speech'
             ? `🎙️ 音声「${result.rawInputText || ''}」で解答`
@@ -95,25 +103,60 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
               : 'bg-amber-50 border-amber-200'
           }`}
         >
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            あなたの解答
-          </span>
-          <div className="my-2">
-            <span className="text-3xl font-black text-slate-800">{result.chosenNote.nameJa}</span>
-            <span className="block text-xs font-semibold text-slate-500">
-              {result.chosenNote.nameEn} ({result.chosenNote.frequency.toFixed(1)}Hz)
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={playChosen}
-            className="px-3 py-1 rounded-lg bg-white hover:bg-moss-50 text-moss-700 border border-moss-200 text-xs font-semibold flex items-center gap-1.5 transition-all"
-          >
-            <Volume2 className="w-3.5 h-3.5" />
-            <span>解答音を聴く</span>
-          </button>
+          {result.rawInputText === '時間切れ' ? (
+            <div className="my-auto text-sm font-bold text-amber-700">未回答</div>
+          ) : (
+            <>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                あなたの解答
+              </span>
+              <div className="my-2">
+                <span className="text-3xl font-black text-slate-800">{result.chosenNote.nameJa}</span>
+                <span className="block text-xs font-semibold text-slate-500">
+                  {result.chosenNote.nameEn} ({result.chosenNote.frequency.toFixed(1)}Hz)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={playChosen}
+                className="px-3 py-1 rounded-lg bg-white hover:bg-moss-50 text-moss-700 border border-moss-200 text-xs font-semibold flex items-center gap-1.5 transition-all"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>解答音を聴く</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {result.rawInputText !== '時間切れ' && (
+        <section
+          className="rounded-2xl border border-moss-200 bg-moss-50/40 p-4"
+          aria-labelledby="round-note-staff-title"
+        >
+          <div className="mb-2 text-center">
+            <h4 id="round-note-staff-title" className="text-sm font-black text-slate-700">
+              楽譜で音程を比較
+            </h4>
+            <p className="mt-1 text-xs text-slate-500">
+              正解の音と、あなたが発声した音を五線譜上に表示しています
+            </p>
+          </div>
+          <div className="mx-auto max-w-md rounded-xl bg-white px-2">
+            <AnswerStaff
+              notes={[result.targetNote, result.chosenNote]}
+              correctFlags={[true, result.isExact]}
+              labels={['正解', 'あなたの声']}
+            />
+          </div>
+          <div className="flex justify-center gap-5 text-xs font-bold">
+            <span className="text-emerald-600">● 正解の音</span>
+            <span className={result.isExact ? 'text-emerald-600' : 'text-rose-500'}>
+              ● 発声した音
+            </span>
+          </div>
+        </section>
+      )}
 
       {/* Additive Scoring Breakdown List */}
       <div className="bg-moss-50/60 rounded-2xl p-4 border border-moss-100 space-y-3">

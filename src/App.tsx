@@ -10,6 +10,7 @@ import {
   GameScreen,
   NoteInfo,
   AnswerResult,
+  AnswerMode,
 } from './types';
 import {
   generateGameQuestions,
@@ -17,6 +18,7 @@ import {
   calculateClosenessScore,
   calculateSpeedBonus,
   calculateStreakBonus,
+  createMistakePracticeQuestions,
 } from './utils/notesData';
 import {
   playNoteSound,
@@ -44,6 +46,7 @@ import { CountdownOverlay } from './components/CountdownOverlay';
 import { AuditionKeyboard } from './components/AuditionKeyboard';
 import { BattleMode } from './components/BattleMode';
 import { CoopMode } from './components/CoopMode';
+import { VoiceAnswerController } from './components/VoiceAnswerController';
 
 export default function App() {
   const [showHistory, setShowHistory] = useState(false);
@@ -55,6 +58,7 @@ export default function App() {
   const [showRules, setShowRules] = useState<boolean>(false);
   const [speechNarrationEnabled, setSpeechNarrationEnabled] = useState<boolean>(true);
   const [difficulty, setDifficulty] = useState<GameDifficulty>('standard');
+  const [answerMode, setAnswerMode] = useState<AnswerMode>('choice');
   // 出題設定: 問題数 + 重複ありなし
   const [numQuestions, setNumQuestions] = useState<number>(5);
   const [allowDuplicates, setAllowDuplicates] = useState<boolean>(false);
@@ -107,6 +111,16 @@ export default function App() {
     setScreen('reference_tone');
   }, [difficulty, numQuestions, allowDuplicates]);
 
+  const handleStartChoiceGame = useCallback(() => {
+    setAnswerMode('choice');
+    handleStartGame();
+  }, [handleStartGame]);
+
+  const handleStartVoiceGame = useCallback(() => {
+    setAnswerMode('voice');
+    handleStartGame();
+  }, [handleStartGame]);
+
 // Homeに戻る: タイマー停止 + start画面へ
   const handleGoHome = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -154,43 +168,52 @@ export default function App() {
     setSelectedNoteChoice(null);
     setReplayCount(0);
     setRemainingTime(10.0);
-    setIsPlayingSound(true);
+    setIsPlayingSound(answerMode === 'choice');
 
-    // Play computer audio for question
-    const targetFreq = currentQuestion.targetNote.frequency;
-    playNoteSound(targetFreq, 1.4, 'piano');
+    // 選択式では音を当て、音声回答では指定された音を参加者が発声する。
+    if (answerMode === 'choice') {
+      playNoteSound(currentQuestion.targetNote.frequency, 1.4, 'piano');
+    }
 
     // Computer voice narration if enabled
     if (speechNarrationEnabled) {
-      speakText(`第${currentQuestion.questionNumber}問、この音は何でしょう？`, true);
+      speakText(
+        answerMode === 'voice'
+          ? `第${currentQuestion.questionNumber}問、${currentQuestion.targetNote.nameJa}の音を出してください`
+          : `第${currentQuestion.questionNumber}問、この音は何でしょう？`,
+        true
+      );
     }
 
-    const soundTimer = setTimeout(() => {
-      setIsPlayingSound(false);
-    }, 1400);
+    const soundTimer = answerMode === 'choice'
+      ? window.setTimeout(() => setIsPlayingSound(false), 1400)
+      : null;
 
     // Start speed countdown
     const startMs = Date.now();
     setQuestionStartTime(startMs);
 
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = window.setInterval(() => {
-      const elapsedSec = (Date.now() - startMs) / 1000;
-      const timeLeft = Math.max(0, 10.0 - elapsedSec);
-      setRemainingTime(timeLeft);
+    // マイク許可とサーバー解析に必要な時間は参加者が制御できないため、
+    // 音声回答では自動タイムアウトを適用しない。
+    if (answerMode === 'choice') {
+      timerRef.current = window.setInterval(() => {
+        const elapsedSec = (Date.now() - startMs) / 1000;
+        const timeLeft = Math.max(0, 10.0 - elapsedSec);
+        setRemainingTime(timeLeft);
 
-      if (timeLeft <= 0) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        // Timeout: auto-submit with timeout
-        handleAnswer(currentQuestion.choices[0], 'click', '時間切れ');
-      }
-    }, 100);
+        if (timeLeft <= 0) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          handleAnswer(currentQuestion.choices[0], 'click', '時間切れ');
+        }
+      }, 100);
+    }
 
     return () => {
-      clearTimeout(soundTimer);
+      if (soundTimer !== null) clearTimeout(soundTimer);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [screen, currentQuestionIndex, questions, countdown]);
+  }, [screen, currentQuestionIndex, questions, countdown, answerMode]);
 
   // 3. Handle Answer Submission (from voice recognition or click)
   const handleAnswer = useCallback(
@@ -215,12 +238,18 @@ export default function App() {
       const closeness = calculateClosenessScore(currentQuestion.targetNote, chosenNote);
 
       // 2. Speed Bonus (only rewarded if semitone diff is within 2)
-      const speedBonus = closeness.semitoneDiff <= 2 ? calculateSpeedBonus(elapsedSec, 10.0) : 0;
+      const isTimeout = rawText === '時間切れ';
+      const closenessScore = isTimeout ? 0 : closeness.score;
+      const speedBonus = !isTimeout && closeness.semitoneDiff <= 2
+        ? calculateSpeedBonus(elapsedSec, 10.0)
+        : 0;
 
       // 3. Streak Bonus
       let newStreak = 0;
       let streakBonus = 0;
-      const isExact = closeness.semitoneDiff === 0;
+      // A timeout is always incorrect. The fallback choice is only needed to
+      // satisfy the answer shape and must never turn into an accidental success.
+      const isExact = !isTimeout && closeness.semitoneDiff === 0;
 
       if (isExact) {
         newStreak = currentStreak + 1;
@@ -236,7 +265,7 @@ export default function App() {
       }
 
       // Additive total
-      const roundTotal = closeness.score + speedBonus + streakBonus;
+      const roundTotal = closenessScore + speedBonus + streakBonus;
       const updatedTotalScore = cumulativeScore + roundTotal;
 
       // Audio feedback chime
@@ -255,7 +284,7 @@ export default function App() {
         targetNote: currentQuestion.targetNote,
         chosenNote,
         semitoneDiff: closeness.semitoneDiff,
-        closenessScore: closeness.score,
+        closenessScore,
         speedBonus,
         streakBonus,
         totalRoundScore: roundTotal,
@@ -295,6 +324,25 @@ export default function App() {
     }
   }, [currentQuestionIndex, questions.length, saveCompletedGame]);
 
+  const handlePracticeMistakes = useCallback(() => {
+    const mistakeQuestions = createMistakePracticeQuestions(questions, history);
+    if (mistakeQuestions.length === 0) return;
+
+    gameId.current = crypto.randomUUID();
+    setSaveError(false);
+    getAudioContext();
+    setQuestions(mistakeQuestions);
+    setCurrentQuestionIndex(0);
+    setCumulativeScore(0);
+    setCurrentStreak(0);
+    setHistory([]);
+    setLastRoundResult(null);
+    setSelectedNoteChoice(null);
+    countdownDoneRef.current = -1;
+    setCountdown(null);
+    setScreen('reference_tone');
+  }, [questions, history]);
+
   // 5. Sound replay handler
   const handlePlayQuestionSound = () => {
     if (!currentQuestion) return;
@@ -309,7 +357,7 @@ export default function App() {
   // Keyboard shortcut listener (1, 2, 3, 4 for choices, R for replay)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (screen !== 'playing' || !currentQuestion || showHistory || countdown !== null) return;
+      if (screen !== 'playing' || !currentQuestion || showHistory || countdown !== null || answerMode === 'voice') return;
 
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -326,7 +374,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screen, currentQuestion, handleAnswer, showHistory, countdown]);
+  }, [screen, currentQuestion, handleAnswer, showHistory, countdown, answerMode]);
 
   return (
     <div className="min-h-screen bg-moss-50 text-slate-800 flex flex-col font-sans selection:bg-moss-200 selection:text-slate-800">
@@ -346,7 +394,8 @@ export default function App() {
           <StartScreen
             difficulty={difficulty}
             onSelectDifficulty={setDifficulty}
-            onStartGame={handleStartGame}
+            onStartGame={handleStartChoiceGame}
+            onStartVoiceGame={handleStartVoiceGame}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             onOpenRules={() => setShowRules(true)}
             onOpenSettings={() => setScreen('settings')}
@@ -366,6 +415,8 @@ export default function App() {
               onSelectDifficulty={setDifficulty}
               speechEnabled={speechNarrationEnabled}
               onToggleSpeech={() => setSpeechNarrationEnabled((prev) => !prev)}
+              answerMode={answerMode}
+              onSelectAnswerMode={setAnswerMode}
               onOpenLeaderboard={() => setShowLeaderboard(true)}
               onOpenRules={() => setShowRules(true)}
               onBack={() => setScreen('start')}
@@ -397,27 +448,31 @@ export default function App() {
               streakCount={currentStreak}
             />
 
-            {/* Timer and speed bonus preview */}
-            <TimerSpeedBar remainingTime={remainingTime} totalTime={10.0} />
+            {/* マイク許可・解析待ちは利用者の責任ではないため音声回答は時間無制限 */}
+            {answerMode === 'choice' ? (
+              <TimerSpeedBar remainingTime={remainingTime} totalTime={10.0} />
+            ) : (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-center text-xs font-bold text-indigo-700">
+                音声回答は時間無制限です。認識後すぐに正誤を判定します。
+              </div>
+            )}
 
-            {/* Computer sound question player card */}
-            <SoundPlayerCard
-              targetNote={currentQuestion.targetNote}
-              isPlaying={isPlayingSound}
-              onPlaySound={handlePlayQuestionSound}
-              replayCount={replayCount}
-            />
-
-            {/* Feature 2: free audition keyboard (playback only, no scoring) */}
-            <AuditionKeyboard />
-
-            {/* Choices Grid (4 choices to select directly by clicking/tapping or 1-4 keys) */}
-            <ChoicesGrid
-              choices={currentQuestion.choices}
-              selectedNote={selectedNoteChoice}
-              onSelect={(note) => handleAnswer(note, 'click')}
-              disabled={isPlayingSound}
-            />
+            {answerMode === 'voice' ? (
+              <>
+                <div className="rounded-2xl border border-moss-200 bg-white p-5 text-center shadow-sm">
+                  <p className="text-xs font-bold text-slate-500">この音を発声してください</p>
+                  <p className="mt-2 text-4xl font-black text-moss-700">{currentQuestion.targetNote.nameJa}</p>
+                  <p className="mt-1 text-sm text-slate-500">{currentQuestion.targetNote.nameEn}</p>
+                </div>
+                <VoiceAnswerController onSelectNote={handleAnswer} disabled={isPlayingSound} />
+              </>
+            ) : (
+              <>
+                <SoundPlayerCard targetNote={currentQuestion.targetNote} isPlaying={isPlayingSound} onPlaySound={handlePlayQuestionSound} replayCount={replayCount} />
+                <AuditionKeyboard />
+                <ChoicesGrid choices={currentQuestion.choices} selectedNote={selectedNoteChoice} onSelect={(note) => handleAnswer(note, 'click')} disabled={isPlayingSound} />
+              </>
+            )}
           </div>
         )}
 
@@ -441,6 +496,7 @@ export default function App() {
             totalScore={cumulativeScore}
             history={history}
             onRestart={handleStartGame}
+            onPracticeMistakes={handlePracticeMistakes}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             answerNotes={history.map((h) => h.chosenNote)}
           />
