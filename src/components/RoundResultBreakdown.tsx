@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { AnswerResult } from '../types';
 import { Volume2, ArrowRight, Flame, Zap, Target, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import { playNoteSound } from '../utils/audioSynthesizer';
+import { AnswerStaff } from './AnswerStaff';
 
 interface RoundResultBreakdownProps {
   result: AnswerResult;
@@ -127,6 +128,35 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
           )}
         </div>
       </div>
+
+      {result.rawInputText !== '時間切れ' && (
+        <section
+          className="rounded-2xl border border-moss-200 bg-moss-50/40 p-4"
+          aria-labelledby="round-note-staff-title"
+        >
+          <div className="mb-2 text-center">
+            <h4 id="round-note-staff-title" className="text-sm font-black text-slate-700">
+              楽譜で音程を比較
+            </h4>
+            <p className="mt-1 text-xs text-slate-500">
+              正解の音と、あなたが発声した音を五線譜上に表示しています
+            </p>
+          </div>
+          <div className="mx-auto max-w-md rounded-xl bg-white px-2">
+            <AnswerStaff
+              notes={[result.targetNote, result.chosenNote]}
+              correctFlags={[true, result.isExact]}
+              labels={['正解', 'あなたの声']}
+            />
+          </div>
+          <div className="flex justify-center gap-5 text-xs font-bold">
+            <span className="text-emerald-600">● 正解の音</span>
+            <span className={result.isExact ? 'text-emerald-600' : 'text-rose-500'}>
+              ● 発声した音
+            </span>
+          </div>
+        </section>
+      )}
 
       {/* Additive Scoring Breakdown List */}
       <div className="bg-moss-50/60 rounded-2xl p-4 border border-moss-100 space-y-3">
