@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, HelpCircle, Volume2, VolumeX, Sparkles, Home } from 'lucide-react';
+import { Trophy, HelpCircle, Volume2, VolumeX, Music2, Home } from 'lucide-react';
 
 interface NavbarProps {
   onOpenHistory: () => void;
@@ -25,8 +25,33 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
         {/* Logo & Title */}
         <div className="flex items-center gap-2.5">
+          {/* When（いつ？）
+            ・今日の日付は？ → 2026-09-15
+            例：2026-09-12
+            ヒント：作業した日を書くだけでOK
+            Where（どこ？）
+            ・どのファイルを変更した？ → src/components/Navbar.tsx
+            例：src/components/UserCard.jsx
+            ヒント：フォルダ名＋ファイル名を書く
+            Who（だれ？）
+            ・誰が作業した？ →吉本＿
+            例：k
+            ヒント：自分の名前でOK
+            What（なにをした？）
+            ・どの部分を変更した？具体的に書く → ヘッダーのロゴアイコンを Sparkles から四分音符 (Music2) に変更した
+            例：ユーザー名の表示ロジックを変更した
+            ヒント：「〇〇を追加した」「△△を変更した」など行動レベルで書く
+            Why（なぜ？）
+            ・なぜその変更が必要だった？ → 音当てゲームなので音符の方が一目で分かるため
+            例：APIの仕様変更で name が null の可能性が出たため
+            ヒント：理由を一言で書く（エラー対策、見やすくするため、など）
+            How（どうやって？）
+            ・どんな手順で実現した？使った関数や処理の流れを書く → lucide-react の Sparkles を Music2 に置き換えただけ。大きさ (w-5 h-5) や緑の背景はそのままにした
+            例：nullチェックを追加し、fallback文字列を返すようにした
+            ヒント：「まず〜して、そのあと〜する」という順番で書く
+          */}
           <div className="w-9 h-9 rounded-xl bg-moss-500 flex items-center justify-center text-white shadow-md shadow-moss-200">
-            <Sparkles className="w-5 h-5" />
+            <Music2 className="w-5 h-5" />
           </div>
           <div>
             <h1 className=" text-base font-bold text-slate-800 tracking-wide flex items-center gap-1.5">

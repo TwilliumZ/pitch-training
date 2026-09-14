@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Settings, Sparkles, Volume2, Target, Flame, Zap, Settings2, Users, Music } from 'lucide-react';
+import { Play, Settings, Music2, Volume2, Target, Flame, Zap, Settings2, Users, Music } from 'lucide-react';
 import { GameDifficulty } from '../types';
 import { getMaxQuestionsNoDup } from '../utils/notesData';
 
@@ -42,8 +42,33 @@ export const StartScreen: React.FC<StartScreenProps> = ({
     <div className="w-full max-w-xl mx-auto bg-white backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-moss-200 shadow-xl shadow-moss-100 space-y-6 text-center animate-in fade-in duration-300">
       {/* Icon badge */}
       <div className="flex flex-col items-center">
+        {/* When（いつ？）
+          ・今日の日付は？ → 2026-09-15
+          例：2026-09-12
+          ヒント：作業した日を書くだけでOK
+          Where（どこ？）
+          ・どのファイルを変更した？ → src/components/StartScreen.tsx
+          例：src/components/UserCard.jsx
+          ヒント：フォルダ名＋ファイル名を書く
+          Who（だれ？）
+          ・誰が作業した？ → 吉本
+          例：k
+          ヒント：自分の名前でOK
+          What（なにをした？）
+          ・どの部分を変更した？具体的に書く → トップ画面の大きなロゴアイコンを Sparkles から四分音符 (Music2) に変更した
+          例：ユーザー名の表示ロジックを変更した
+          ヒント：「〇〇を追加した」「△△を変更した」など行動レベルで書く
+          Why（なぜ？）
+          ・なぜその変更が必要だった？ → 音当てゲームなので音符の方が一目で分かるため
+          例：APIの仕様変更で name が null の可能性が出たため
+          ヒント：理由を一言で書く（エラー対策、見やすくするため、など）
+          How（どうやって？）
+          ・どんな手順で実現した？使った関数や処理の流れを書く → lucide-react の Sparkles を Music2 に置き換えただけ。大きさ (w-10 h-10) や緑の背景はそのままにした
+          例：nullチェックを追加し、fallback文字列を返すようにした
+          ヒント：「まず〜して、そのあと〜する」という順番で書く
+        */}
         <div className="w-20 h-20 rounded-3xl bg-moss-500 flex items-center justify-center text-white shadow-xl shadow-moss-200 mb-4">
-          <Sparkles className="w-10 h-10" />
+          <Music2 className="w-10 h-10" />
         </div>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-moss-100 text-moss-700 border border-moss-200 text-xs font-bold mb-2 ">
           <Volume2 className="w-3.5 h-3.5 text-moss-600" />
