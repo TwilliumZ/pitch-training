@@ -19,6 +19,7 @@ def frequency_to_midi(frequency_hz: float) -> int:
 
 
 def midi_to_name(midi_number: int) -> str:
+    # 診断用の実測音名。ゲーム画面の表記はTS側のALL_NOTESを正とする。
     names = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
     return f"{names[midi_number % 12]}{midi_number // 12 - 1}"
 
@@ -28,7 +29,7 @@ def detect_pitch(waveform: torch.Tensor, sample_rate: int) -> dict[str, float | 
         waveform = waveform.mean(dim=0)
     waveform = waveform.float().flatten()
     if waveform.numel() < sample_rate // 4:
-        raise PitchDetectionError("録音が短すぎます。1秒ほど声を伸ばしてください。")
+        raise PitchDetectionError("録音が短すぎます。約2秒声を伸ばしてください。")
     waveform = waveform - waveform.mean()
     rms = waveform.square().mean().sqrt().item()
     if rms < MIN_RMS:
@@ -48,7 +49,7 @@ def detect_pitch(waveform: torch.Tensor, sample_rate: int) -> dict[str, float | 
             end = min(frame_count, int(active_indices[-1].item()) + 2) * frame_size
             waveform = waveform[start:end]
         if waveform.numel() < sample_rate // 4:
-            raise PitchDetectionError("声が短すぎます。一定の高さで1秒ほど発声してください。")
+            raise PitchDetectionError("声が短すぎます。一定の高さで約2秒発声してください。")
 
     target_rate = 16_000
     if sample_rate != target_rate:

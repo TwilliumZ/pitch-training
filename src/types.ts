@@ -33,6 +33,7 @@ export interface AnswerResult {
   streakCountAfter: number;
   answeredVia: 'voice_speech' | 'voice_singing' | 'click';
   rawInputText?: string;
+  pitchConfidence?: number;
 }
 
 export interface LeaderboardEntry {

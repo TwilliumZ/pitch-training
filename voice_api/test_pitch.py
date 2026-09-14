@@ -37,6 +37,20 @@ class PitchDetectionTest(unittest.TestCase):
         self.assertEqual(result["midiNumber"], 57)
         self.assertEqual(result["noteName"], "A3")
 
+    def test_detects_voice_after_reaction_delay(self) -> None:
+        sample_rate = 16_000
+        time = torch.arange(sample_rate * 2) / sample_rate
+        voice = 0.12 * torch.sin(2 * math.pi * 220 * time)
+        waveform = torch.cat((torch.zeros(sample_rate), voice))
+        self.assertEqual(detect_pitch(waveform, sample_rate)["midiNumber"], 57)
+
+    def test_rejects_brief_voice_with_surrounding_silence(self) -> None:
+        sample_rate = 16_000
+        time = torch.arange(1600) / sample_rate
+        voice = 0.2 * torch.sin(2 * math.pi * 440 * time)
+        with self.assertRaises(PitchDetectionError):
+            detect_pitch(torch.cat((torch.zeros(sample_rate), voice, torch.zeros(sample_rate))), sample_rate)
+
     def test_rejects_silence(self) -> None:
         with self.assertRaises(PitchDetectionError):
             detect_pitch(torch.zeros(16_000), 16_000)

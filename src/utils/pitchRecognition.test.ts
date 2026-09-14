@@ -16,3 +16,12 @@ test('PCMサンプルを有効なモノラルWAVに変換する', async () => {
   assert.equal(new TextDecoder().decode(bytes.slice(8, 12)), 'WAVE');
   assert.equal(wav.size, 50);
 });
+
+test('オクターブ補正の境界と不正値を扱う', () => {
+  assert.equal(noteFromDetectedMidi(72)?.nameEn, 'C5');
+  assert.equal(noteFromDetectedMidi(84)?.nameEn, 'C5');
+  assert.equal(noteFromDetectedMidi(73)?.midiNumber, 61);
+  assert.equal(noteFromDetectedMidi(59)?.midiNumber, 71);
+  assert.equal(noteFromDetectedMidi(NaN), null);
+  assert.equal(noteFromDetectedMidi(Infinity), null);
+});
