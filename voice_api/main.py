@@ -18,7 +18,7 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health() -> dict[str, bool]:
+async def health() -> dict[str, bool]:
     return {"ok": True}
 
 
@@ -36,10 +36,11 @@ def load_pcm_wav(content: bytes) -> tuple[torch.Tensor, int]:
 
 
 @app.post("/pitch")
-async def pitch(audio: UploadFile = File(...)) -> dict[str, float | int | str]:
+def pitch(audio: UploadFile = File(...)) -> dict[str, float | int | str]:
     if audio.content_type not in {"audio/wav", "audio/x-wav", "application/octet-stream"}:
         raise HTTPException(status_code=415, detail="WAV形式の音声を送信してください。")
-    content = await audio.read(MAX_AUDIO_BYTES + 1)
+    # 同期エンドポイント全体をFastAPIのスレッドプールで実行する。
+    content = audio.file.read(MAX_AUDIO_BYTES + 1)
     if len(content) > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="音声ファイルが大きすぎます。")
     try:

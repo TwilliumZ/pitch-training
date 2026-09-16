@@ -17,6 +17,7 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
   onNextQuestion,
   isLastQuestion,
 }) => {
+  const answerLabel = result.answeredVia === 'click' ? '選んだ音' : result.answeredVia === 'voice_singing' ? '発声した音（オクターブ補正後）' : '回答した音';
   // Play target sound on click
   const playTarget = () => playNoteSound(result.targetNote.frequency, 1.2, 'piano');
   const playChosen = () => playNoteSound(result.chosenNote.frequency, 1.2, 'piano');
@@ -71,6 +72,12 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
             : `🎵 歌声ピッチ検出で解答`}
         </p>
       </div>
+
+      {result.answeredVia === 'voice_singing' && result.rawInputText !== '時間切れ' && result.pitchConfidence !== undefined && (
+        <p className="text-center text-xs text-slate-500">
+          認識信頼度 {Math.round(result.pitchConfidence * 100)}%（音程の安定性と音量から算出した目安で、正解確率ではありません）
+        </p>
+      )}
 
       {/* Comparison Cards: Correct vs Chosen */}
       <div className="grid grid-cols-2 gap-4">
@@ -139,20 +146,20 @@ export const RoundResultBreakdown: React.FC<RoundResultBreakdownProps> = ({
               楽譜で音程を比較
             </h4>
             <p className="mt-1 text-xs text-slate-500">
-              正解の音と、あなたが発声した音を五線譜上に表示しています
+              正解の音と、あなたが{answerLabel}を五線譜上に表示しています
             </p>
           </div>
           <div className="mx-auto max-w-md rounded-xl bg-white px-2">
             <AnswerStaff
               notes={[result.targetNote, result.chosenNote]}
               correctFlags={[true, result.isExact]}
-              labels={['正解', 'あなたの声']}
+              labels={['正解', result.answeredVia === 'voice_singing' ? 'あなたの声' : 'あなたの回答']}
             />
           </div>
           <div className="flex justify-center gap-5 text-xs font-bold">
             <span className="text-emerald-600">● 正解の音</span>
             <span className={result.isExact ? 'text-emerald-600' : 'text-rose-500'}>
-              ● 発声した音
+              ● {answerLabel}
             </span>
           </div>
         </section>

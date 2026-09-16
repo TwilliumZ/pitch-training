@@ -8,11 +8,14 @@ export interface PitchRecognitionResult {
   confidence: number;
 }
 
+// 音名を当てる練習のため、声域差を許容してC4〜C5へ移す。
+// C4/C5は維持し、それより低いドはC4、高いドはC5に対応する。
+// 採点・表示の音名はALL_NOTESが正。APIのnoteNameは実測音の診断用。
 export function noteFromDetectedMidi(midiNumber: number): NoteInfo | null {
   if (!Number.isFinite(midiNumber)) return null;
   let normalizedMidi = Math.round(midiNumber);
-  while (normalizedMidi < 60) normalizedMidi += 12;
-  while (normalizedMidi > 72) normalizedMidi -= 12;
+  if (normalizedMidi < 60) normalizedMidi = 60 + ((normalizedMidi % 12) + 12) % 12;
+  else if (normalizedMidi > 72) normalizedMidi = 72 - ((12 - normalizedMidi % 12) % 12);
   return ALL_NOTES.find((note) => note.midiNumber === normalizedMidi) ?? null;
 }
 
@@ -24,7 +27,7 @@ export async function recognizePitch(wav: Blob, signal?: AbortSignal): Promise<P
   if (!response.ok) {
     throw new Error(payload?.detail || '音声を解析できませんでした。もう一度お試しください。');
   }
-  if (!payload || !Number.isFinite(payload.midiNumber) || !Number.isFinite(payload.frequencyHz)) {
+  if (!payload || !Number.isFinite(payload.midiNumber) || !Number.isFinite(payload.frequencyHz) || payload.frequencyHz <= 0 || !Number.isFinite(payload.confidence) || payload.confidence < 0 || payload.confidence > 1) {
     throw new Error('音声解析サーバーから不正な応答が返されました。');
   }
   return payload;

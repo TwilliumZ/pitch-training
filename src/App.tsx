@@ -220,7 +220,8 @@ export default function App() {
     (
       chosenNote: NoteInfo,
       answeredVia: 'voice_speech' | 'voice_singing' | 'click',
-      rawText?: string
+      rawText?: string,
+      pitchConfidence?: number
     ) => {
       if (screen !== 'playing' || !currentQuestion) return;
 
@@ -293,6 +294,7 @@ export default function App() {
         streakCountAfter: newStreak,
         answeredVia,
         rawInputText: rawText,
+        pitchConfidence,
       };
 
       setCumulativeScore(updatedTotalScore);

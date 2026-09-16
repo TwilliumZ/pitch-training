@@ -3,6 +3,19 @@
  */
 
 let audioCtx: AudioContext | null = null;
+let recordingMuted = false;
+
+// 既存の再生・予約音を破棄し、録音中の新規再生も抑止する。
+export async function mutePlaybackForRecording(): Promise<void> {
+  recordingMuted = true;
+  const previous = audioCtx;
+  audioCtx = null;
+  if (previous && previous.state !== 'closed') await previous.close();
+}
+
+export function unmutePlaybackAfterRecording(): void {
+  recordingMuted = false;
+}
 
 export function getAudioContext(): AudioContext {
   if (!audioCtx) {
@@ -25,6 +38,7 @@ export function playMelody(
   gap: number = 0.05,
   instrument: 'piano' | 'flute' | 'bell' = 'piano'
 ): void {
+  if (recordingMuted) return;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
@@ -91,6 +105,7 @@ export function playMelody(
  * Play a musical note with rich acoustic harmonics (Piano / Celesta-like timbre).
  */
 export function playNoteSound(freq: number, duration: number = 1.4, instrument: 'piano' | 'flute' | 'bell' = 'piano'): void {
+  if (recordingMuted) return;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
@@ -151,6 +166,7 @@ export function playNoteSound(freq: number, duration: number = 1.4, instrument: 
  * Play rewarding sound effects
  */
 export function playSuccessChime(isPerfect: boolean = true): void {
+  if (recordingMuted) return;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
@@ -179,6 +195,7 @@ export function playSuccessChime(isPerfect: boolean = true): void {
 }
 
 export function playNearMissChime(): void {
+  if (recordingMuted) return;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
@@ -207,6 +224,7 @@ export function playNearMissChime(): void {
 }
 
 export function playComboStreakSound(streak: number): void {
+  if (recordingMuted) return;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
