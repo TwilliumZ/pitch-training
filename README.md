@@ -23,12 +23,20 @@ View your app in AI Studio: https://ai.studio/apps/fe411041-3219-4c50-98cf-6195d
 
 設定画面の「回答方法」で「音声回答」を選択すると、指定された音を参加者が発声し、torchaudio が音高を認識して正誤を判定します。
 
+**Prerequisites:** Python 3.11 または 3.12（3.13以降は `torch==2.8.0` のwheelが無い場合があります）、Node.js 20+。
+
 1. Python 仮想環境を作成して依存関係を導入します。
-   `python3 -m venv .venv && .venv/bin/pip install -r requirements-voice.txt`
-2. 音声解析 API を起動します。
-   `.venv/bin/uvicorn voice_api.main:app --host 0.0.0.0 --port 8000`
+   - Mac / Linux:
+     `python3 -m venv .venv && .venv/bin/pip install -r requirements-voice.txt`
+   - Windows (PowerShell):
+     `py -3.12 -m venv .venv; .\.venv\Scripts\pip install -r requirements-voice.txt`
+2. 音声解析 API を起動します（`{"ok":true}` が返れば正常）。
+   - Mac / Linux: `.venv/bin/python -m uvicorn voice_api.main:app --host 127.0.0.1 --port 8000`
+   - Windows (PowerShell): `.\.venv\Scripts\python -m uvicorn voice_api.main:app --host 127.0.0.1 --port 8000`
+   - npm経由: `npm run voice-api:mac` / `npm run voice-api:win`
+   - 動作確認: `npm run smoke:voice`（テスト音声をAPIへ送信し、A4と判定されれば成功）
 3. 別のターミナルでフロントエンドを起動します。
-   `npm run dev`
+   `npm run dev`（既定ポート3000が使用中の場合は `npx vite --port=5173 --host=0.0.0.0 --strictPort` など空きポートを使用）
 
 Intel MacではPython 3.10〜3.12を使用してください。`requirements-voice.txt` は環境を判別し、Intel Macにはtorch/torchaudio 2.2.2とNumPy 1.26.4、それ以外にはtorch/torchaudio 2.8.0とNumPy 2.2.6を導入します。
 
@@ -37,7 +45,7 @@ Intel MacではPython 3.10〜3.12を使用してください。`requirements-voi
 ## 確認
 
 - フロントエンド: `npm test && npm run lint && npm run build`
-- 音声解析: `.venv/bin/python -m unittest voice_api.test_pitch`
+- 音声解析: `npm run test:voice`（Mac: `.venv/bin/python`、Windows: `.\.venv\Scripts\python` で `python -m unittest voice_api.test_pitch` と同じ）
 
 ## 録音・採点の仕様
 

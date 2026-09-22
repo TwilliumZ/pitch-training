@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LoaderCircle, Mic, MicOff, RotateCcw, ServerCrash } from 'lucide-react';
 import { mutePlaybackForRecording, unmutePlaybackAfterRecording } from '../utils/audioSynthesizer';
+import { stopSpeaking } from '../utils/voiceManager';
 import type { NoteInfo } from '../types';
 import { AnswerStaff } from './AnswerStaff';
 import { encodeMonoWav, noteFromDetectedMidi, recognizePitch } from '../utils/pitchRecognition';
@@ -111,6 +112,8 @@ export const VoiceAnswerController: React.FC<VoiceAnswerControllerProps> = ({ on
     try {
       playbackMutedRef.current = true;
       await mutePlaybackForRecording();
+      // 問題文の読み上げが録音に混ざらないよう、録音開始時に停止する。
+      stopSpeaking();
       if (session !== sessionRef.current) return;
       // 持続する歌声を「背景ノイズ」として除去しないよう音声補正を無効化する。
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });

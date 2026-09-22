@@ -6,7 +6,7 @@ import wave
 
 import torch
 
-from voice_api.pitch import PitchDetectionError, detect_pitch
+from voice_api.pitch import PitchDetectionError, detect_pitch, frequency_to_midi, midi_to_name
 from voice_api.main import load_pcm_wav
 
 
@@ -63,6 +63,37 @@ class PitchDetectionTest(unittest.TestCase):
         waveform, sample_rate = load_pcm_wav(output.getvalue())
         self.assertEqual(waveform.shape, (1, 16_000))
         self.assertEqual(sample_rate, 16_000)
+
+    def test_rejects_8bit_wav(self) -> None:
+        output = io.BytesIO()
+        with wave.open(output, "wb") as wav:
+            wav.setparams((1, 1, 16_000, 16_000, "NONE", ""))
+            wav.writeframes(bytes(16_000))
+        with self.assertRaises(ValueError):
+            load_pcm_wav(output.getvalue())
+
+    def test_rejects_too_short_input(self) -> None:
+        with self.assertRaises(PitchDetectionError):
+            detect_pitch(torch.zeros(1_000), 16_000)
+
+    def test_rejects_quiet_input(self) -> None:
+        sample_rate = 16_000
+        time = torch.arange(sample_rate * 2) / sample_rate
+        with self.assertRaises(PitchDetectionError):
+            detect_pitch(0.0001 * torch.sin(2 * math.pi * 440 * time), sample_rate)
+
+    def test_handles_stereo_48khz_input(self) -> None:
+        sample_rate = 48_000
+        time = torch.arange(sample_rate * 2) / sample_rate
+        mono = 0.2 * torch.sin(2 * math.pi * 440 * time)
+        result = detect_pitch(torch.stack((mono, mono)), sample_rate)
+        self.assertEqual(result["midiNumber"], 69)
+        self.assertEqual(result["noteName"], "A4")
+
+    def test_frequency_midi_helpers(self) -> None:
+        self.assertEqual(frequency_to_midi(440.0), 69)
+        self.assertEqual(midi_to_name(69), "A4")
+        self.assertEqual(midi_to_name(60), "C4")
 
 
 if __name__ == "__main__":

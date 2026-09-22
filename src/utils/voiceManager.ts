@@ -34,6 +34,21 @@ export function speakText(text: string, enabled: boolean = true): Promise<void> 
 }
 
 /**
+ * Stop any ongoing speech synthesis (e.g. question narration).
+ * Call before microphone recording so the guide voice is not
+ * picked up by the mic and sent to pitch detection.
+ */
+export function stopSpeaking(): void {
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  } catch {
+    // Speech synthesis is optional; recording must proceed regardless.
+  }
+}
+
+/**
  * Normalize and match speech transcription against available note choices.
  */
 export function matchSpeechToChoice(
