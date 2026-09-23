@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Settings, Music2, Volume2, Target, Flame, Zap, Settings2, Users, Music } from 'lucide-react';
+import { Play, Settings, Music2, Volume2, Target, Flame, Zap, Settings2, Music } from 'lucide-react';
 import { GameDifficulty } from '../types';
 import { getMaxQuestionsNoDup } from '../utils/notesData';
 
@@ -11,8 +11,6 @@ interface StartScreenProps {
   onOpenLeaderboard: () => void;
   onOpenRules: () => void;
   onOpenSettings: () => void;
-  onOpenBattle: () => void;
-  onOpenCoop: () => void;
   numQuestions: number;
   onSelectNumQuestions: (n: number) => void;
   allowDuplicates: boolean;
@@ -27,8 +25,6 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   onOpenLeaderboard,
   onOpenRules,
   onOpenSettings,
-  onOpenBattle,
-  onOpenCoop,
   numQuestions,
   onSelectNumQuestions,
   allowDuplicates,
@@ -246,25 +242,6 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   <Settings className="w-4 h-4" />
   <span>設定</span>
 </button>
-
-        <div className="space-y-2 pt-2 border-t border-moss-200">
-          <button
-            type="button"
-            onClick={onOpenBattle}
-            className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-          >
-            <Users className="w-5 h-5" />
-            <span>📶 LAN対戦モード（同じWi-Fi内で対戦）</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenCoop}
-            className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-          >
-            <Music className="w-5 h-5" />
-            <span>🤝 LAN協力モード（メロディーを耳コピして協力）</span>
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Trophy, HelpCircle, Volume2, VolumeX, Music2, Home } from 'lucide-react';
+import { Trophy, HelpCircle, Volume2, VolumeX, Music2, Home, MessageCircle } from 'lucide-react';
 
 interface NavbarProps {
+  onOpenCommunity: () => void;
   onOpenHistory: () => void;
   onOpenRanking: () => void;
   onOpenRules: () => void;
@@ -12,6 +13,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  onOpenCommunity,
   onOpenHistory,
   onOpenRanking,
   onOpenRules,
@@ -65,7 +67,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={onOpenCommunity} className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold flex items-center gap-1.5"><MessageCircle className="w-4 h-4" />仲間のひろば</button>
           {showHome && (
     <button
       id="btn-go-home-header"

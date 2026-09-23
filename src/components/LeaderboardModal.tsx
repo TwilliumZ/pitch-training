@@ -1,144 +1,61 @@
-import React, { useState } from 'react';
-import { LeaderboardEntry } from '../types';
-import { Trophy, X, Medal, Flame, Zap, Target, Trash2 } from 'lucide-react';
-import { clearLeaderboard, getLeaderboard } from '../utils/leaderboardStorage';
+import React, { useEffect, useState } from 'react';
+import type { LeaderboardCategory, LeaderboardEntry } from '../types';
+import { Trophy, X, RefreshCw } from 'lucide-react';
+import { getLeaderboard } from '../utils/leaderboardStorage';
 
 interface LeaderboardModalProps {
   onClose: () => void;
+  initialCategory: LeaderboardCategory;
 }
 
-export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) => {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>(() => getLeaderboard());
+export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCategory }) => {
+  const [category, setCategory] = useState(initialCategory);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    setEntries([]);
+    getLeaderboard(category, controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setEntries(data); })
+      .catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'ランキングを読み込めませんでした。'); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [category, refresh]);
 
-  const handleClear = () => {
-    if (window.confirm('ランキング記録を初期化してもよろしいですか？')) {
-      const reset = clearLeaderboard();
-      setEntries(reset);
-    }
-  };
-
+  const selectClass = 'mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-2 text-white';
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Trophy className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white">殿堂入りランキング</h3>
-              <p className="text-xs text-slate-400">上位ハイスコア記録 (1ゲーム5問)</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      <section role="dialog" aria-modal="true" aria-labelledby="ranking-title" className="w-full max-w-xl bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-200">
+        <header className="p-5 border-b border-slate-700 flex items-center justify-between">
+          <div><h2 id="ranking-title" className="font-bold text-white flex items-center gap-2"><Trophy className="w-5 h-5 text-amber-400" />みんなのランキング</h2>
+            <p className="mt-1 text-xs text-slate-400">同じ条件で遊んだ仲間の上位50記録</p></div>
+          <button type="button" aria-label="ランキングを閉じる" onClick={onClose} className="p-2"><X /></button>
+        </header>
+        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs border-b border-slate-700">
+          <label>難易度<select className={selectClass} value={category.difficulty} onChange={(e) => setCategory({ ...category, difficulty: e.target.value as LeaderboardCategory['difficulty'] })}><option value="standard">標準</option><option value="advanced">上級</option></select></label>
+          <label>回答方法<select className={selectClass} value={category.answerMode} onChange={(e) => setCategory({ ...category, answerMode: e.target.value as LeaderboardCategory['answerMode'] })}><option value="choice">選択式</option><option value="voice">音声回答</option></select></label>
+          <label>問題数<select className={selectClass} value={category.questionCount} onChange={(e) => setCategory({ ...category, questionCount: Number(e.target.value) })}>{Array.from({ length: 20 }, (_, i) => <option key={i} value={i + 1}>{i + 1}問</option>)}</select></label>
+          <label>同じ音の出題<select className={selectClass} value={String(category.allowDuplicates)} onChange={(e) => setCategory({ ...category, allowDuplicates: e.target.value === 'true' })}><option value="false">重複なし</option><option value="true">重複あり</option></select></label>
+          <label>練習の種類<select className={selectClass} value={String(category.practice)} onChange={(e) => setCategory({ ...category, practice: e.target.value === 'true' })}><option value="false">通常ゲーム</option><option value="true">間違えた問題の再練習</option></select></label>
         </div>
-
-        {/* Content list */}
-        <div className="p-4 overflow-y-auto space-y-2 flex-1 divide-y divide-slate-800/60">
-          {entries.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-sm">
-              記録はまだありません。ゲームをプレイして登録しましょう！
-            </div>
-          ) : (
-            entries.map((entry, index) => {
-              const rank = index + 1;
-              let rankIcon = (
-                <span className="w-7 h-7 rounded-full bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center">
-                  {rank}
-                </span>
-              );
-
-              if (rank === 1) {
-                rankIcon = (
-                  <span className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-xs font-black flex items-center justify-center">
-                    🥇
-                  </span>
-                );
-              } else if (rank === 2) {
-                rankIcon = (
-                  <span className="w-7 h-7 rounded-full bg-slate-300/20 text-slate-200 border border-slate-400/40 text-xs font-black flex items-center justify-center">
-                    🥈
-                  </span>
-                );
-              } else if (rank === 3) {
-                rankIcon = (
-                  <span className="w-7 h-7 rounded-full bg-amber-700/20 text-amber-400 border border-amber-600/40 text-xs font-black flex items-center justify-center">
-                    🥉
-                  </span>
-                );
-              }
-
-              return (
-                <div
-                  key={entry.id}
-                  className={`pt-2.5 pb-2.5 flex items-center justify-between gap-3 px-2 rounded-xl transition-colors ${
-                    rank <= 3 ? 'bg-slate-800/40' : 'hover:bg-slate-800/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {rankIcon}
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-white truncate max-w-[150px] sm:max-w-[200px]">
-                        {entry.name}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                        <span className="flex items-center gap-0.5">
-                          <Target className="w-3 h-3 text-emerald-400" />
-                          正解 {entry.perfectCount}/5
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <Flame className="w-3 h-3 text-orange-400" />
-                          {entry.maxStreak}連鎖
-                        </span>
-                        <span className="flex items-center gap-0.5 hidden sm:flex">
-                          <Zap className="w-3 h-3 text-amber-400" />
-                          平均 {entry.averageTimeSec}s
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <div className="font-mono font-black text-amber-400 text-base sm:text-lg">
-                      {entry.totalScore.toLocaleString()}
-                      <span className="text-xs font-bold text-amber-400/70 ml-1">pt</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400">{entry.date}</div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+        <div className="p-4 overflow-y-auto flex-1" aria-live="polite" aria-busy={loading}>
+          {loading ? <p className="py-8 text-center">読み込み中…</p> : error ? <p role="alert" className="py-6 text-rose-300">{error}</p> : entries.length === 0 ? <p className="py-8 text-center text-sm text-slate-400">この条件の記録はまだありません。ゲーム終了後に登録しましょう！</p> : <ol className="space-y-2">{entries.map((entry, index) => (
+            <li key={entry.id} className="flex justify-between gap-3 rounded-xl bg-slate-800 p-3">
+              <div className="min-w-0"><div className="font-bold truncate"><span className="mr-2 text-amber-400">{index + 1}位</span>{entry.name}</div>
+                <div className="mt-1 text-xs text-slate-400">正解 {entry.perfectCount}/{entry.questionCount}問 ・ {entry.maxStreak}連鎖 ・ 平均 {entry.averageTimeSec.toFixed(1)}秒</div></div>
+              <div className="text-right shrink-0"><p className="font-bold text-amber-400">{entry.totalScore.toLocaleString()} pt</p><time className="text-xs text-slate-400">{new Date(entry.date).toLocaleDateString('ja-JP')}</time></div>
+            </li>
+          ))}</ol>}
         </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleClear}
-            className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1.5 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>ランキングをリセット</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all"
-          >
-            閉じる
-          </button>
-        </div>
-      </div>
+        <footer className="p-4 border-t border-slate-700 flex justify-between items-center text-xs">
+          <button type="button" disabled={loading} onClick={() => setRefresh((value) => value + 1)} className="flex gap-2 items-center rounded-lg bg-slate-800 px-3 py-2 disabled:opacity-50"><RefreshCw className="w-4 h-4" />{error ? '再試行' : '最新の記録に更新'}</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-800">閉じる</button>
+        </footer>
+      </section>
     </div>
   );
 };

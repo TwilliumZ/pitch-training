@@ -1,3 +1,4 @@
+import { CommunitySpace } from './components/CommunitySpace';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -44,16 +45,15 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { ReferenceToneScreen } from './components/ReferenceToneScreen';
 import { CountdownOverlay } from './components/CountdownOverlay';
 import { AuditionKeyboard } from './components/AuditionKeyboard';
-import { BattleMode } from './components/BattleMode';
-import { CoopMode } from './components/CoopMode';
 import { VoiceAnswerController } from './components/VoiceAnswerController';
 
 export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const gameId = useRef('');
+  const [isPractice, setIsPractice] = useState(false);
   // Screen & Modals
-  const [screen, setScreen] = useState<GameScreen>('start');
+  const [screen, setScreen] = useState<GameScreen>(() => new URLSearchParams(window.location.search).has('community') || new URLSearchParams(window.location.search).has('room') ? 'community' : 'start');
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
   const [showRules, setShowRules] = useState<boolean>(false);
   const [speechNarrationEnabled, setSpeechNarrationEnabled] = useState<boolean>(true);
@@ -92,6 +92,7 @@ export default function App() {
   // 1. Start a new game -> First show Reference Tone Screen
   const handleStartGame = useCallback(() => {
     gameId.current = crypto.randomUUID();
+    setIsPractice(false);
     setSaveError(false);
     getAudioContext(); // Resume audio
     const maxNoDup = getMaxQuestionsNoDup(difficulty);
@@ -123,17 +124,13 @@ export default function App() {
 
 // Homeに戻る: タイマー停止 + start画面へ
   const handleGoHome = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('community');
+    url.searchParams.delete('room');
+    window.history.replaceState(null, '', url);
     if (timerRef.current) clearInterval(timerRef.current);
     setCountdown(null);
     setScreen('start');
-  }, []);
-
-  const handleOpenBattle = useCallback(() => {
-    setScreen('battle');
-  }, []);
-
-  const handleOpenCoop = useCallback(() => {
-    setScreen('coop');
   }, []);
 
   // Transition from Reference Tone Screen to First Question
@@ -255,7 +252,7 @@ export default function App() {
       if (isExact) {
         newStreak = currentStreak + 1;
         streakBonus = calculateStreakBonus(newStreak);
-      } else if (closeness.semitoneDiff === 1) {
+      } else if (!isTimeout && closeness.semitoneDiff === 1) {
         // Near-miss preserves streak without increasing
         newStreak = currentStreak;
         streakBonus = 0;
@@ -276,7 +273,7 @@ export default function App() {
         } else {
           playSuccessChime(true);
         }
-      } else if (closeness.semitoneDiff === 1) {
+      } else if (!isTimeout && closeness.semitoneDiff === 1) {
         playNearMissChime();
       }
 
@@ -333,6 +330,7 @@ export default function App() {
     gameId.current = crypto.randomUUID();
     setSaveError(false);
     getAudioContext();
+    setIsPractice(true);
     setQuestions(mistakeQuestions);
     setCurrentQuestionIndex(0);
     setCumulativeScore(0);
@@ -387,11 +385,13 @@ export default function App() {
         onOpenRules={() => setShowRules(true)}
         speechEnabled={speechNarrationEnabled}
         onToggleSpeech={() => setSpeechNarrationEnabled((prev) => !prev)}
+        onOpenCommunity={() => { handleGoHome(); setScreen('community'); }}
         onGoHome={handleGoHome}
        showHome={screen !== 'start' && screen !== 'settings'}
       />
       {/* Main Game Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center items-center">
+        {screen === 'community' && <CommunitySpace onBack={handleGoHome} />}
         {screen === 'start' && (
           <StartScreen
             difficulty={difficulty}
@@ -401,8 +401,6 @@ export default function App() {
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             onOpenRules={() => setShowRules(true)}
             onOpenSettings={() => setScreen('settings')}
-            onOpenBattle={handleOpenBattle}
-            onOpenCoop={handleOpenCoop}
             numQuestions={numQuestions}
             onSelectNumQuestions={setNumQuestions}
             allowDuplicates={allowDuplicates}
@@ -494,6 +492,10 @@ export default function App() {
             <button onClick={() => setShowHistory(true)} className="ml-3 underline text-indigo-300">学習履歴・グラフを見る</button>
           </div>
           <GameOverModal
+            gameId={gameId.current}
+            answerMode={answerMode}
+            allowDuplicates={allowDuplicates}
+            practice={isPractice}
             difficulty={difficulty}
             totalScore={cumulativeScore}
             history={history}
@@ -504,28 +506,12 @@ export default function App() {
           />
           </>
         )}
-
-        {screen === 'battle' && (
-          <BattleMode
-            difficulty={difficulty}
-            numQuestions={numQuestions}
-            onExit={handleGoHome}
-          />
-        )}
-
-        {screen === 'coop' && (
-          <CoopMode
-            difficulty={difficulty}
-            numQuestions={numQuestions}
-            onExit={handleGoHome}
-          />
-        )}
       </main>
 
       {/* Modals */}
       {showHistory && <ResultHistoryModal onClose={() => setShowHistory(false)} />}
       {showLeaderboard && (
-        <LeaderboardModal onClose={() => setShowLeaderboard(false)} />
+        <LeaderboardModal initialCategory={{ difficulty, answerMode, questionCount: screen === 'game_over' ? history.length : numQuestions, allowDuplicates, practice: screen === 'game_over' && isPractice }} onClose={() => setShowLeaderboard(false)} />
       )}
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}

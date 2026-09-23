@@ -10,3 +10,7 @@ coverage/
 .venv.backup-*/
 __pycache__/
 *.py[cod]
+data/
+
+.vercel/
+.vercel

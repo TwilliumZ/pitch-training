@@ -8,3 +8,6 @@ torchaudio==2.2.2; sys_platform == "darwin" and platform_machine == "x86_64"
 torch==2.8.0; sys_platform != "darwin" or platform_machine != "x86_64"
 torchaudio==2.8.0; sys_platform != "darwin" or platform_machine != "x86_64"
 uvicorn[standard]==0.35.0
+
+# Needed only when using a hosted Postgres database.
+psycopg[binary]==3.2.10

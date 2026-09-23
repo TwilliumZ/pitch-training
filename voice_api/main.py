@@ -5,15 +5,19 @@ import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from .community import router as community_router
+from .leaderboard import router as leaderboard_router
 from .pitch import PitchDetectionError, detect_pitch
 
 MAX_AUDIO_BYTES = 5 * 1024 * 1024
 app = FastAPI(title="Pitch Training Voice API", version="1.0.0")
+app.include_router(leaderboard_router)
+app.include_router(community_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -35,7 +39,8 @@ def load_pcm_wav(content: bytes) -> tuple[torch.Tensor, int]:
     return samples.reshape(-1, channels).transpose(0, 1), sample_rate
 
 
-@app.post("/pitch")
+@app.post("/api/pitch")
+@app.post("/pitch", include_in_schema=False)
 def pitch(audio: UploadFile = File(...)) -> dict[str, float | int | str]:
     if audio.content_type not in {"audio/wav", "audio/x-wav", "application/octet-stream"}:
         raise HTTPException(status_code=415, detail="WAV形式の音声を送信してください。")
