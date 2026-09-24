@@ -1,0 +1,8 @@
+# Vercel/Linux: CPU-only packages avoid including CUDA libraries.
+--extra-index-url https://download.pytorch.org/whl/cpu
+fastapi==0.116.1
+numpy==2.2.6
+python-multipart==0.0.20
+torch==2.8.0+cpu
+torchaudio==2.8.0+cpu
+psycopg[binary]==3.2.10

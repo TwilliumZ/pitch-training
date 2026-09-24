@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { AnswerResult, GameDifficulty, NoteInfo } from '../types';
+import { AnswerResult, AnswerMode, GameDifficulty, NoteInfo } from '../types';
 import { Trophy, Award, Flame, Zap, RotateCcw, Check, Target, Repeat2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { saveLeaderboardEntry } from '../utils/leaderboardStorage';
 import { AnswerReviewPlayer } from './AnswerReviewPlayer';
 
 interface GameOverModalProps {
+  gameId: string;
+  answerMode: AnswerMode;
+  allowDuplicates: boolean;
+  practice: boolean;
   difficulty: GameDifficulty;
   totalScore: number;
   history: AnswerResult[];
@@ -17,6 +21,7 @@ interface GameOverModalProps {
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
+  gameId, answerMode, allowDuplicates, practice,
   totalScore,
   difficulty,
   history,
@@ -27,6 +32,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 }) => {
   const [playerName, setPlayerName] = useState<string>('');
   const [isSaved, setIsSaved] = useState<boolean>(false);
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Trigger celebration confetti
   useEffect(() => {
@@ -89,18 +97,21 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     };
   }
 
-  const handleSaveToRanking = (e: React.FormEvent) => {
+  const handleSaveToRanking = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalName = playerName.trim() || '名無しリスナー';
-    saveLeaderboardEntry({
-      name: finalName,
-      totalScore,
-      perfectCount,
-      maxStreak,
-      averageTimeSec: Number(avgTime.toFixed(1)),
-      difficulty,
-    });
-    setIsSaved(true);
+    if (saving || isSaved) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await saveLeaderboardEntry(gameId, playerName.trim() || '名無しリスナー', {
+        difficulty, answerMode, questionCount: history.length, allowDuplicates, practice,
+      }, history);
+      setIsSaved(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : '登録に失敗しました。再試行してください。');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -140,7 +151,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               <Target className="w-3.5 h-3.5" />
               <span>完全正解</span>
             </div>
-            <div className="text-lg sm:text-xl font-black text-white">
+            <div className="text-lg sm:text-xl font-black text-slate-800">
               {perfectCount} <span className="text-xs text-slate-400 font-medium">/ {totalQuestions}問</span>
             </div>
           </div>
@@ -202,15 +213,19 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       <div className="bg-moss-50/60 rounded-2xl p-4 border border-moss-200 text-left space-y-3">
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-amber-500" />
-          <span className="text-xs font-bold text-slate-800">ランキングにスコアを登録</span>
+          <span className="text-xs font-bold text-slate-800">みんなのランキングにスコアを登録</span>
         </div>
 
+        <p className="text-xs text-slate-500">登録した名前と点数は、このURLから遊ぶ仲間に公開されます。同じ難易度・回答方法・問題数・重複設定で順位を比較します。再練習は別集計です。</p>
+        {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
         {!isSaved ? (
           <form onSubmit={handleSaveToRanking} className="flex flex-col sm:flex-row gap-2">
             <input
               id="player-name-input"
               type="text"
               maxLength={12}
+              aria-label="ランキングに公開する名前"
+              disabled={saving}
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="プレイヤー名を入力 (例: 音感マスター)"
@@ -218,15 +233,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             />
             <button
               id="btn-save-ranking"
+              disabled={saving}
               type="submit"
               className="px-5 py-2 rounded-xl bg-moss-500 hover:bg-moss-600 text-white text-xs font-bold transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5"
             >
               <Award className="w-4 h-4" />
-              <span>ランキングに登録</span>
+              <span>{saving ? '登録中…' : 'ランキングに登録'}</span>
             </button>
           </form>
         ) : (
-          <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 text-xs font-semibold">
             <div className="flex items-center gap-1.5">
               <Check className="w-4 h-4" />
               <span>ランキングにスコアを登録しました！</span>
@@ -234,7 +250,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className="underline text-emerald-200 hover:text-white"
+              className="underline text-emerald-700 hover:text-emerald-900"
             >
               ランキングを見る →
             </button>

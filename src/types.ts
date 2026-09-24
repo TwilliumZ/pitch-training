@@ -36,7 +36,15 @@ export interface AnswerResult {
   pitchConfidence?: number;
 }
 
-export interface LeaderboardEntry {
+export interface LeaderboardCategory {
+  difficulty: GameDifficulty;
+  answerMode: AnswerMode;
+  questionCount: number;
+  allowDuplicates: boolean;
+  practice: boolean;
+}
+
+export interface LeaderboardEntry extends LeaderboardCategory {
   id: string;
   name: string;
   totalScore: number;
@@ -50,4 +58,4 @@ export interface LeaderboardEntry {
 export type GameDifficulty = 'standard' | 'advanced';
 export type VoiceInputMode = 'speech' | 'pitch' | 'both';
 export type AnswerMode = 'choice' | 'voice';
-export type GameScreen = 'start' | 'settings' | 'reference_tone' | 'playing' | 'round_result' | 'game_over' | 'ranking';
+export type GameScreen = 'community' | 'start' | 'settings' | 'reference_tone' | 'playing' | 'round_result' | 'game_over' | 'ranking';

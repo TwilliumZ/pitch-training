@@ -13,9 +13,8 @@ export default defineConfig(() => {
     },
     server: {
       proxy: {
-        '/api/pitch': {
+        '/api': {
           target: process.env.VOICE_API_URL || 'http://127.0.0.1:8000',
-          rewrite: () => '/pitch',
         },
       },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
